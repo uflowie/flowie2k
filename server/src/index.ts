@@ -24,8 +24,6 @@ interface Track {
   file_size: number
   mime_type: string
   uploaded_at: string
-  last_played?: string
-  play_count: number
   thumbnail_path?: string
 }
 
@@ -258,7 +256,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
                                 <strong>\${file.title || file.filename}</strong>
                                 \${file.artist ? \`<br><small>by \${file.artist}</small>\` : ''}
                                 \${file.album ? \`<br><small>from "\${file.album}"</small>\` : ''}
-                                <br><small>\${(file.file_size / 1024 / 1024).toFixed(2)} MB • Plays: \${file.play_count}</small>
+                                <br><small>\${(file.file_size / 1024 / 1024).toFixed(2)} MB</small>
                             </div>
                         </div>
                         <div class="track-actions">
@@ -393,7 +391,7 @@ app.get('/files', async (c) => {
   try {
     // Get metadata from D1 database
     const { results } = await c.env.MUSIC_DB.prepare(`
-      SELECT id, filename, title, artist, album, genre, duration, file_size, mime_type, uploaded_at, play_count, thumbnail_path
+      SELECT id, filename, title, artist, album, genre, duration, file_size, mime_type, uploaded_at, thumbnail_path
       FROM tracks 
       ORDER BY uploaded_at DESC
     `).all<Track>()
@@ -408,38 +406,13 @@ app.get('/stream/:filename', async (c) => {
   const filename = c.req.param('filename')
   
   try {
-    // Get track from database
-    const track = await c.env.MUSIC_DB.prepare(`
-      SELECT id FROM tracks WHERE filename = ?
-    `).bind(filename).first<{ id: number }>()
-    
     const object = await c.env.MUSIC_BUCKET.get(filename)
     
     if (!object) {
       return c.json({ error: 'File not found' }, 404)
     }
 
-    // Track analytics for full file requests (not range requests)
     const range = c.req.header('range')
-    if (!range && track) {
-      // Log play event
-      await c.env.MUSIC_DB.prepare(`
-        INSERT INTO play_events (track_id, user_agent, ip_address)
-        VALUES (?, ?, ?)
-      `).bind(
-        track.id,
-        c.req.header('user-agent') || 'unknown',
-        c.req.header('cf-connecting-ip') || 'unknown'
-      ).run()
-      
-      // Update play count and last played
-      await c.env.MUSIC_DB.prepare(`
-        UPDATE tracks 
-        SET play_count = play_count + 1, last_played = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).bind(track.id).run()
-    }
-
     const fileSize = object.size
 
     if (range) {
