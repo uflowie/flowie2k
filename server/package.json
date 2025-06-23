@@ -1,5 +1,5 @@
 {
-  "name": "my-app",
+  "name": "flowie2k",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",
