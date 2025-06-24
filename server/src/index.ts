@@ -3,6 +3,7 @@ import type { Bindings } from './types'
 import songs from './songs'
 import playlists from './playlists'
 import frontend from './frontend'
+import analytics from './analytics'
 
 const app = new Hono<{ Bindings: Bindings }>()
 
@@ -10,5 +11,6 @@ const app = new Hono<{ Bindings: Bindings }>()
 app.route('/', frontend)
 app.route('/', songs)
 app.route('/api/playlists', playlists)
+app.route('/api/analytics', analytics)
 
 export default app

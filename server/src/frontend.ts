@@ -222,6 +222,11 @@ const HTML_CONTENT = `<!DOCTYPE html>
             color: #666;
             font-weight: normal;
         }
+        .listen-stats {
+            font-size: 11px;
+            color: #888;
+            margin-top: 2px;
+        }
     </style>
 </head>
 <body>
@@ -265,10 +270,56 @@ const HTML_CONTENT = `<!DOCTYPE html>
         const audioPlayer = document.getElementById('audioPlayer');
         const status = document.getElementById('status');
 
+        // Analytics tracking
+        let currentTrackId = null;
+        let listeningInterval = null;
+
         function showStatus(message, type = 'success') {
             status.innerHTML = \`<div class="status \${type}">\${message}</div>\`;
             setTimeout(() => status.innerHTML = '', 3000);
         }
+
+        // Start tracking listening time
+        function startListeningTracking(trackId) {
+            stopListeningTracking(); // Stop any existing tracking
+            
+            currentTrackId = trackId;
+            listeningInterval = setInterval(async () => {
+                try {
+                    await fetch('/api/analytics/listen', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ track_id: trackId })
+                    });
+                } catch (error) {
+                    console.error('Failed to track listening:', error);
+                }
+            }, 1000); // Every second
+        }
+
+        // Stop tracking listening time
+        function stopListeningTracking() {
+            if (listeningInterval) {
+                clearInterval(listeningInterval);
+                listeningInterval = null;
+            }
+            currentTrackId = null;
+        }
+
+        // Audio player event handlers
+        audioPlayer.addEventListener('play', () => {
+            if (currentTrackId) {
+                startListeningTracking(currentTrackId);
+            }
+        });
+
+        audioPlayer.addEventListener('pause', () => {
+            stopListeningTracking();
+        });
+
+        audioPlayer.addEventListener('ended', () => {
+            stopListeningTracking();
+        });
 
         uploadArea.addEventListener('click', () => fileInput.click());
 
@@ -332,36 +383,47 @@ const HTML_CONTENT = `<!DOCTYPE html>
                     return;
                 }
                 
-                fileList.innerHTML = data.files.map(file => \`
-                    <div class="file-item">
-                        <div class="file-info">
-                            \${file.thumbnail_path ? 
-                                \`<img src="/thumbnail/\${encodeURIComponent(file.filename)}" alt="Album art" class="album-art" onerror="this.style.display='none'">\` :
-                                \`<div class="album-art" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">♪</div>\`
-                            }
-                            <div class="track-details">
-                                <strong>\${file.title || file.filename}</strong>
-                                \${file.artist ? \`<br><small>by \${file.artist}</small>\` : ''}
-                                \${file.album ? \`<br><small>from "\${file.album}"</small>\` : ''}
-                                <br><small>\${(file.file_size / 1024 / 1024).toFixed(2)} MB</small>
+                fileList.innerHTML = data.files.map(file => {
+                    const listenTimeText = file.total_seconds > 0 
+                        ? \`Listened: \${Math.floor(file.total_seconds / 60)}m \${file.total_seconds % 60}s • \${file.listen_count} session\${file.listen_count !== 1 ? 's' : ''}\`
+                        : 'Not played yet';
+                    
+                    return \`
+                        <div class="file-item">
+                            <div class="file-info">
+                                \${file.thumbnail_path ? 
+                                    \`<img src="/thumbnail/\${encodeURIComponent(file.filename)}" alt="Album art" class="album-art" onerror="this.style.display='none'">\` :
+                                    \`<div class="album-art" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">♪</div>\`
+                                }
+                                <div class="track-details">
+                                    <strong>\${file.title || file.filename}</strong>
+                                    \${file.artist ? \`<br><small>by \${file.artist}</small>\` : ''}
+                                    \${file.album ? \`<br><small>from "\${file.album}"</small>\` : ''}
+                                    <br><small>\${(file.file_size / 1024 / 1024).toFixed(2)} MB</small>
+                                    <div class="listen-stats">\${listenTimeText}</div>
+                                </div>
+                            </div>
+                            <div class="track-actions">
+                                <button class="play-btn" onclick="playFile('\${file.filename}', \${file.id})">Play</button>
+                                <button class="delete-btn" onclick="deleteFile('\${file.filename}')">Delete</button>
+                                <button class="add-to-playlist-btn" onclick="showAddToPlaylistModal(\${file.id}, '\${file.title || file.filename}')">Add to Playlist</button>
                             </div>
                         </div>
-                        <div class="track-actions">
-                            <button class="play-btn" onclick="playFile('\${file.filename}')">Play</button>
-                            <button class="delete-btn" onclick="deleteFile('\${file.filename}')">Delete</button>
-                            <button class="add-to-playlist-btn" onclick="showAddToPlaylistModal(\${file.id}, '\${file.title || file.filename}')">Add to Playlist</button>
-                        </div>
-                    </div>
-                \`).join('');
+                    \`;
+                }).join('');
             } catch (error) {
                 showStatus(\`Failed to load file list: \${error.message}\`, 'error');
             }
         }
 
-        function playFile(filename) {
+        function playFile(filename, trackId) {
             const streamUrl = \`/stream/\${encodeURIComponent(filename)}\`;
             audioPlayer.src = streamUrl;
             audioPlayer.style.display = 'block';
+            
+            // Set current track for analytics
+            currentTrackId = trackId;
+            
             audioPlayer.play();
             showStatus(\`Playing: \${filename}\`);
         }
@@ -543,7 +605,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
                                     </div>
                                 </div>
                                 <div class="playlist-track-actions">
-                                    <button class="play-btn" onclick="playFile('\${track.filename}')">Play</button>
+                                    <button class="play-btn" onclick="playFile('\${track.filename}', \${track.id})">Play</button>
                                     <button class="delete-btn" onclick="removeFromPlaylist(\${playlistId}, \${track.id})">Remove</button>
                                 </div>
                             </div>

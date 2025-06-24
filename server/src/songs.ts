@@ -14,6 +14,11 @@ interface Track {
   mime_type: string
   uploaded_at: string
   thumbnail_path?: string
+  listen_count: number
+  total_seconds: number
+  avg_seconds_per_session: number
+  first_listen?: string
+  last_listen?: string
 }
 
 const songs = new Hono<{ Bindings: Bindings }>()
@@ -92,11 +97,21 @@ songs.post('/upload/:filename', async (c) => {
 // Get all songs
 songs.get('/files', async (c) => {
   try {
-    // Get metadata from D1 database
+    // Get metadata from D1 database with analytics statistics
     const { results } = await c.env.MUSIC_DB.prepare(`
-      SELECT id, filename, title, artist, album, genre, duration, file_size, mime_type, uploaded_at, thumbnail_path
-      FROM tracks 
-      ORDER BY uploaded_at DESC
+      SELECT 
+        t.id, t.filename, t.title, t.artist, t.album, t.genre, t.duration, 
+        t.file_size, t.mime_type, t.uploaded_at, t.thumbnail_path,
+        COALESCE(COUNT(le.id), 0) as listen_count,
+        COALESCE(SUM(le.listened_for_seconds), 0) as total_seconds,
+        COALESCE(AVG(le.listened_for_seconds), 0) as avg_seconds_per_session,
+        MIN(le.started_at) as first_listen,
+        MAX(le.started_at) as last_listen
+      FROM tracks t
+      LEFT JOIN listening_events le ON t.id = le.track_id
+      GROUP BY t.id, t.filename, t.title, t.artist, t.album, t.genre, t.duration, 
+               t.file_size, t.mime_type, t.uploaded_at, t.thumbnail_path
+      ORDER BY t.uploaded_at DESC
     `).all<Track>()
     
     return c.json({ files: results })
