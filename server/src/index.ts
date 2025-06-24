@@ -9,7 +9,7 @@ const app = new Hono<{ Bindings: Bindings }>()
 
 // Mount domain routes
 app.route('/', frontend)
-app.route('/', songs)
+app.route('/api/songs', songs)
 app.route('/api/playlists', playlists)
 app.route('/api/analytics', analytics)
 

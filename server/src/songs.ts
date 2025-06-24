@@ -95,7 +95,7 @@ songs.post('/upload/:filename', async (c) => {
 })
 
 // Get all songs
-songs.get('/files', async (c) => {
+songs.get('/', async (c) => {
   try {
     // Get metadata from D1 database with analytics statistics
     const { results } = await c.env.MUSIC_DB.prepare(`
@@ -114,18 +114,27 @@ songs.get('/files', async (c) => {
       ORDER BY t.uploaded_at DESC
     `).all<Track>()
     
-    return c.json({ files: results })
+    return c.json({ songs: results })
   } catch (error) {
     return c.json({ error: 'Failed to list files' }, 500)
   }
 })
 
 // Stream a song
-songs.get('/stream/:filename', async (c) => {
-  const filename = c.req.param('filename')
+songs.get('/:id/stream', async (c) => {
+  const id = c.req.param('id')
   
   try {
-    const object = await c.env.MUSIC_BUCKET.get(filename)
+    // Get filename from database
+    const track = await c.env.MUSIC_DB.prepare(`
+      SELECT filename FROM tracks WHERE id = ?
+    `).bind(id).first<{ filename: string }>()
+    
+    if (!track) {
+      return c.json({ error: 'Song not found' }, 404)
+    }
+    
+    const object = await c.env.MUSIC_BUCKET.get(track.filename)
     
     if (!object) {
       return c.json({ error: 'File not found' }, 404)
@@ -140,7 +149,7 @@ songs.get('/stream/:filename', async (c) => {
       const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1
       const chunksize = (end - start) + 1
       
-      const rangeObject = await c.env.MUSIC_BUCKET.get(filename, {
+      const rangeObject = await c.env.MUSIC_BUCKET.get(track.filename, {
         range: { offset: start, length: chunksize }
       })
       
@@ -168,14 +177,14 @@ songs.get('/stream/:filename', async (c) => {
 })
 
 // Get song thumbnail
-songs.get('/thumbnail/:filename', async (c) => {
-  const filename = c.req.param('filename')
+songs.get('/:id/thumbnail', async (c) => {
+  const id = c.req.param('id')
   
   try {
     // Get thumbnail path from database
     const track = await c.env.MUSIC_DB.prepare(`
-      SELECT thumbnail_path FROM tracks WHERE filename = ?
-    `).bind(filename).first<{ thumbnail_path: string | null }>()
+      SELECT thumbnail_path FROM tracks WHERE id = ?
+    `).bind(id).first<{ thumbnail_path: string | null }>()
     
     if (!track || !track.thumbnail_path) {
       return c.json({ error: 'Thumbnail not found' }, 404)
@@ -201,21 +210,21 @@ songs.get('/thumbnail/:filename', async (c) => {
 })
 
 // Delete a song
-songs.delete('/delete/:filename', async (c) => {
-  const filename = c.req.param('filename')
+songs.delete('/:id', async (c) => {
+  const id = c.req.param('id')
   
   try {
     // Get track info from database
     const track = await c.env.MUSIC_DB.prepare(`
-      SELECT id, thumbnail_path FROM tracks WHERE filename = ?
-    `).bind(filename).first<{ id: number; thumbnail_path: string | null }>()
+      SELECT filename, thumbnail_path FROM tracks WHERE id = ?
+    `).bind(id).first<{ filename: string; thumbnail_path: string | null }>()
     
     if (!track) {
-      return c.json({ error: 'File not found' }, 404)
+      return c.json({ error: 'Song not found' }, 404)
     }
     
     // Delete from R2 storage
-    await c.env.MUSIC_BUCKET.delete(filename)
+    await c.env.MUSIC_BUCKET.delete(track.filename)
     
     // Delete thumbnail if it exists
     if (track.thumbnail_path) {
@@ -224,10 +233,10 @@ songs.delete('/delete/:filename', async (c) => {
     
     // Delete from database (this will cascade delete play_events due to foreign key)
     await c.env.MUSIC_DB.prepare(`
-      DELETE FROM tracks WHERE filename = ?
-    `).bind(filename).run()
+      DELETE FROM tracks WHERE id = ?
+    `).bind(id).run()
     
-    return c.json({ message: `File ${filename} deleted successfully` })
+    return c.json({ message: `Song deleted successfully` })
   } catch (error) {
     return c.json({ error: 'Failed to delete file' }, 500)
   }

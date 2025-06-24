@@ -357,7 +357,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
 
         async function uploadFile(file) {
             try {
-                const response = await fetch(\`/upload/\${encodeURIComponent(file.name)}\`, {
+                const response = await fetch(\`/api/songs/upload/\${encodeURIComponent(file.name)}\`, {
                     method: 'POST',
                     body: file
                 });
@@ -375,15 +375,15 @@ const HTML_CONTENT = `<!DOCTYPE html>
 
         async function loadFileList() {
             try {
-                const response = await fetch('/files');
+                const response = await fetch('/api/songs');
                 const data = await response.json();
                 
-                if (data.files.length === 0) {
+                if (data.songs.length === 0) {
                     fileList.innerHTML = '<p>No files uploaded yet</p>';
                     return;
                 }
                 
-                fileList.innerHTML = data.files.map(file => {
+                fileList.innerHTML = data.songs.map(file => {
                     const listenTimeText = file.total_seconds > 0 
                         ? \`Listened: \${Math.floor(file.total_seconds / 60)}m \${file.total_seconds % 60}s • \${file.listen_count} session\${file.listen_count !== 1 ? 's' : ''}\`
                         : 'Not played yet';
@@ -392,7 +392,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
                         <div class="file-item">
                             <div class="file-info">
                                 \${file.thumbnail_path ? 
-                                    \`<img src="/thumbnail/\${encodeURIComponent(file.filename)}" alt="Album art" class="album-art" onerror="this.style.display='none'">\` :
+                                    \`<img src="/api/songs/\${file.id}/thumbnail" alt="Album art" class="album-art" onerror="this.style.display='none'">\` :
                                     \`<div class="album-art" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">♪</div>\`
                                 }
                                 <div class="track-details">
@@ -404,8 +404,8 @@ const HTML_CONTENT = `<!DOCTYPE html>
                                 </div>
                             </div>
                             <div class="track-actions">
-                                <button class="play-btn" onclick="playFile('\${file.filename}', \${file.id})">Play</button>
-                                <button class="delete-btn" onclick="deleteFile('\${file.filename}')">Delete</button>
+                                <button class="play-btn" onclick="playFile(\${file.id}, '\${file.title || file.filename}')">Play</button>
+                                <button class="delete-btn" onclick="deleteFile(\${file.id}, '\${file.title || file.filename}')">Delete</button>
                                 <button class="add-to-playlist-btn" onclick="showAddToPlaylistModal(\${file.id}, '\${file.title || file.filename}')">Add to Playlist</button>
                             </div>
                         </div>
@@ -416,8 +416,8 @@ const HTML_CONTENT = `<!DOCTYPE html>
             }
         }
 
-        function playFile(filename, trackId) {
-            const streamUrl = \`/stream/\${encodeURIComponent(filename)}\`;
+        function playFile(trackId, trackName) {
+            const streamUrl = \`/api/songs/\${trackId}/stream\`;
             audioPlayer.src = streamUrl;
             audioPlayer.style.display = 'block';
             
@@ -425,35 +425,36 @@ const HTML_CONTENT = `<!DOCTYPE html>
             currentTrackId = trackId;
             
             audioPlayer.play();
-            showStatus(\`Playing: \${filename}\`);
+            showStatus(\`Playing: \${trackName}\`);
         }
 
-        async function deleteFile(filename) {
-            if (!confirm(\`Are you sure you want to delete "\${filename}"? This action cannot be undone.\`)) {
+        async function deleteFile(trackId, trackName) {
+            if (!confirm(\`Are you sure you want to delete "\${trackName}"? This action cannot be undone.\`)) {
                 return;
             }
             
             try {
-                const response = await fetch(\`/delete/\${encodeURIComponent(filename)}\`, {
+                const response = await fetch(\`/api/songs/\${trackId}\`, {
                     method: 'DELETE'
                 });
                 
                 if (response.ok) {
-                    showStatus(\`Deleted \${filename}\`);
+                    showStatus(\`Deleted \${trackName}\`);
                     loadFileList(); // Refresh the list
                     
                     // Stop playing if this file is currently playing
-                    if (audioPlayer.src.includes(encodeURIComponent(filename))) {
+                    if (currentTrackId === trackId) {
                         audioPlayer.pause();
                         audioPlayer.style.display = 'none';
                         audioPlayer.src = '';
+                        stopListeningTracking();
                     }
                 } else {
                     const error = await response.json();
                     throw new Error(error.error || 'Delete failed');
                 }
             } catch (error) {
-                showStatus(\`Failed to delete \${filename}: \${error.message}\`, 'error');
+                showStatus(\`Failed to delete \${trackName}: \${error.message}\`, 'error');
             }
         }
 
@@ -590,7 +591,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
                                         <span style="font-size: 14px; color: #999;">\${index + 1}</span>
                                     </div>
                                     \${track.thumbnail_path ? 
-                                        \`<img src="/thumbnail/\${encodeURIComponent(track.filename)}" alt="Album art" class="playlist-track-thumbnail" onerror="this.style.display='none'">\` :
+                                        \`<img src="/api/songs/\${track.id}/thumbnail" alt="Album art" class="playlist-track-thumbnail" onerror="this.style.display='none'">\` :
                                         \`<div class="playlist-track-thumbnail" style="display: flex; align-items: center; justify-content: center; color: #999; font-size: 14px;">♪</div>\`
                                     }
                                     <div class="playlist-track-details">
@@ -605,7 +606,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
                                     </div>
                                 </div>
                                 <div class="playlist-track-actions">
-                                    <button class="play-btn" onclick="playFile('\${track.filename}', \${track.id})">Play</button>
+                                    <button class="play-btn" onclick="playFile(\${track.id}, '\${track.title || track.filename}')">Play</button>
                                     <button class="delete-btn" onclick="removeFromPlaylist(\${playlistId}, \${track.id})">Remove</button>
                                 </div>
                             </div>
@@ -690,7 +691,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
 
 // Serve the main frontend page
 frontend.get('/', (c) => {
-  return c.html(HTML_CONTENT)
+    return c.html(HTML_CONTENT)
 })
 
 export default frontend

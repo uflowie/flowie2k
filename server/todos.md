@@ -2,3 +2,4 @@
 - auth
 - better type safety for return types
 - respect json property naming conventions
+- use signed urls
