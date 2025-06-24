@@ -1,5 +1,12 @@
 import { Hono } from 'hono'
-import type { Bindings, Playlist } from './types'
+import type { Bindings } from './types'
+
+interface Playlist {
+  id: number
+  name: string
+  created_at: string
+  updated_at: string
+}
 
 const playlists = new Hono<{ Bindings: Bindings }>()
 
@@ -55,7 +62,7 @@ playlists.put('/:id', async (c) => {
       WHERE id = ?
     `).bind(name.trim(), playlistId).run()
 
-    if (result.changes === 0) {
+    if (result.meta?.changes === 0) {
       return c.json({ error: 'Playlist not found' }, 404)
     }
 
@@ -78,7 +85,7 @@ playlists.delete('/:id', async (c) => {
       DELETE FROM playlists WHERE id = ?
     `).bind(playlistId).run()
 
-    if (result.changes === 0) {
+    if (result.meta?.changes === 0) {
       return c.json({ error: 'Playlist not found' }, 404)
     }
 
@@ -104,11 +111,11 @@ playlists.get('/:id/tracks', async (c) => {
 
     // Get tracks in playlist
     const { results: tracks } = await c.env.MUSIC_DB.prepare(`
-      SELECT t.*, pt.position, pt.added_at as playlist_added_at
+      SELECT t.*, pt.added_at as playlist_added_at
       FROM tracks t
       JOIN playlist_tracks pt ON t.id = pt.track_id
       WHERE pt.playlist_id = ?
-      ORDER BY pt.position ASC
+      ORDER BY pt.added_at ASC
     `).bind(playlistId).all()
 
     return c.json({ playlist, tracks })
@@ -146,17 +153,11 @@ playlists.post('/:id/tracks', async (c) => {
       return c.json({ error: 'Track not found' }, 404)
     }
 
-    // Get next position
-    const nextPosition = await c.env.MUSIC_DB.prepare(`
-      SELECT COALESCE(MAX(position), -1) + 1 as next_position 
-      FROM playlist_tracks WHERE playlist_id = ?
-    `).bind(playlistId).first<{ next_position: number }>()
-
     // Add track to playlist
     await c.env.MUSIC_DB.prepare(`
-      INSERT OR IGNORE INTO playlist_tracks (playlist_id, track_id, position) 
-      VALUES (?, ?, ?)
-    `).bind(playlistId, trackId, nextPosition?.next_position || 0).run()
+      INSERT OR IGNORE INTO playlist_tracks (playlist_id, track_id) 
+      VALUES (?, ?)
+    `).bind(playlistId, trackId).run()
 
     // Update playlist timestamp
     await c.env.MUSIC_DB.prepare(`
@@ -179,7 +180,7 @@ playlists.delete('/:id/tracks/:trackId', async (c) => {
       DELETE FROM playlist_tracks WHERE playlist_id = ? AND track_id = ?
     `).bind(playlistId, trackId).run()
 
-    if (result.changes === 0) {
+    if (result.meta?.changes === 0) {
       return c.json({ error: 'Track not found in playlist' }, 404)
     }
 

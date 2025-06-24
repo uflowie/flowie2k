@@ -1,6 +1,20 @@
 import { Hono } from 'hono'
 import { parseBuffer } from 'music-metadata'
-import type { Bindings, Track } from './types'
+import type { Bindings } from './types'
+
+interface Track {
+  id: number
+  filename: string
+  title?: string
+  artist?: string
+  album?: string
+  genre?: string
+  duration?: number
+  file_size: number
+  mime_type: string
+  uploaded_at: string
+  thumbnail_path?: string
+}
 
 const songs = new Hono<{ Bindings: Bindings }>()
 

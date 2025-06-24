@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS playlist_tracks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   playlist_id INTEGER NOT NULL,
   track_id INTEGER NOT NULL,
-  position INTEGER NOT NULL DEFAULT 0,
   added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
   FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE,
@@ -22,4 +21,3 @@ CREATE TABLE IF NOT EXISTS playlist_tracks (
 CREATE INDEX IF NOT EXISTS idx_playlists_name ON playlists(name);
 CREATE INDEX IF NOT EXISTS idx_playlist_tracks_playlist_id ON playlist_tracks(playlist_id);
 CREATE INDEX IF NOT EXISTS idx_playlist_tracks_track_id ON playlist_tracks(track_id);
-CREATE INDEX IF NOT EXISTS idx_playlist_tracks_position ON playlist_tracks(playlist_id, position);
