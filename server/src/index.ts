@@ -27,6 +27,21 @@ interface Track {
   thumbnail_path?: string
 }
 
+interface Playlist {
+  id: number
+  name: string
+  created_at: string
+  updated_at: string
+}
+
+interface PlaylistTrack {
+  id: number
+  playlist_id: number
+  track_id: number
+  position: number
+  added_at: string
+}
+
 const app = new Hono<{ Bindings: Bindings }>()
 
 const HTML_CONTENT = `<!DOCTYPE html>
@@ -146,6 +161,63 @@ const HTML_CONTENT = `<!DOCTYPE html>
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+        .playlist-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+        }
+        .playlist-name {
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .playlist-actions {
+            display: flex;
+            gap: 5px;
+        }
+        .playlist-actions button {
+            padding: 4px 8px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .edit-btn {
+            background: #ffc107;
+            color: #212529;
+        }
+        .edit-btn:hover {
+            background: #e0a800;
+        }
+        .add-to-playlist-btn {
+            background: #28a745;
+            color: white;
+            margin-left: 5px;
+        }
+        .add-to-playlist-btn:hover {
+            background: #218838;
+        }
+        .playlist-tracks {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            display: none;
+        }
+        .playlist-track {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        .playlist-track:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body>
@@ -158,6 +230,17 @@ const HTML_CONTENT = `<!DOCTYPE html>
         <div class="upload-area" id="uploadArea">
             <p>Drop MP3 files here or click to select</p>
             <input type="file" id="fileInput" accept="audio/*" multiple>
+        </div>
+        
+        <h2>Playlists</h2>
+        <div class="container">
+            <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                <input type="text" id="playlistNameInput" placeholder="Enter playlist name..." style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <button onclick="createPlaylist()" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Create Playlist</button>
+            </div>
+            <div id="playlistList">
+                <p>No playlists yet</p>
+            </div>
         </div>
         
         <h2>Music Files</h2>
@@ -262,6 +345,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
                         <div class="track-actions">
                             <button class="play-btn" onclick="playFile('\${file.filename}')">Play</button>
                             <button class="delete-btn" onclick="deleteFile('\${file.filename}')">Delete</button>
+                            <button class="add-to-playlist-btn" onclick="showAddToPlaylistModal(\${file.id}, '\${file.title || file.filename}')">Add to Playlist</button>
                         </div>
                     </div>
                 \`).join('');
@@ -307,8 +391,208 @@ const HTML_CONTENT = `<!DOCTYPE html>
             }
         }
 
-        // Load file list on page load
+        // Playlist management
+        let playlists = [];
+        
+        async function loadPlaylists() {
+            try {
+                const response = await fetch('/api/playlists');
+                const data = await response.json();
+                playlists = data.playlists;
+                
+                const playlistList = document.getElementById('playlistList');
+                if (playlists.length === 0) {
+                    playlistList.innerHTML = '<p>No playlists yet</p>';
+                    return;
+                }
+                
+                playlistList.innerHTML = playlists.map(playlist => \`
+                    <div class="playlist-item">
+                        <div class="playlist-name" onclick="togglePlaylistTracks(\${playlist.id})">\${playlist.name}</div>
+                        <div class="playlist-actions">
+                            <button class="edit-btn" onclick="editPlaylist(\${playlist.id}, '\${playlist.name}')">Edit</button>
+                            <button class="delete-btn" onclick="deletePlaylist(\${playlist.id})">Delete</button>
+                        </div>
+                    </div>
+                    <div id="playlist-tracks-\${playlist.id}" class="playlist-tracks"></div>
+                \`).join('');
+            } catch (error) {
+                showStatus(\`Failed to load playlists: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function createPlaylist() {
+            const nameInput = document.getElementById('playlistNameInput');
+            const name = nameInput.value.trim();
+            
+            if (!name) {
+                showStatus('Please enter a playlist name', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/playlists', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                
+                if (response.ok) {
+                    nameInput.value = '';
+                    showStatus(\`Playlist "\${name}" created successfully\`);
+                    loadPlaylists();
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to create playlist');
+                }
+            } catch (error) {
+                showStatus(\`Failed to create playlist: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function editPlaylist(id, currentName) {
+            const newName = prompt('Enter new playlist name:', currentName);
+            if (!newName || newName.trim() === currentName) return;
+            
+            try {
+                const response = await fetch(\`/api/playlists/\${id}\`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName.trim() })
+                });
+                
+                if (response.ok) {
+                    showStatus(\`Playlist renamed to "\${newName.trim()}"\`);
+                    loadPlaylists();
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to update playlist');
+                }
+            } catch (error) {
+                showStatus(\`Failed to update playlist: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function deletePlaylist(id) {
+            const playlist = playlists.find(p => p.id === id);
+            if (!confirm(\`Are you sure you want to delete the playlist "\${playlist?.name}"? This action cannot be undone.\`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(\`/api/playlists/\${id}\`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showStatus(\`Playlist deleted successfully\`);
+                    loadPlaylists();
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to delete playlist');
+                }
+            } catch (error) {
+                showStatus(\`Failed to delete playlist: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function togglePlaylistTracks(playlistId) {
+            const tracksDiv = document.getElementById(\`playlist-tracks-\${playlistId}\`);
+            
+            if (tracksDiv.style.display === 'block') {
+                tracksDiv.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const response = await fetch(\`/api/playlists/\${playlistId}/tracks\`);
+                const data = await response.json();
+                
+                if (data.tracks.length === 0) {
+                    tracksDiv.innerHTML = '<p>No tracks in this playlist</p>';
+                } else {
+                    tracksDiv.innerHTML = data.tracks.map(track => \`
+                        <div class="playlist-track">
+                            <span>\${track.title || track.filename}</span>
+                            <div>
+                                <button class="play-btn" onclick="playFile('\${track.filename}')">Play</button>
+                                <button class="delete-btn" onclick="removeFromPlaylist(\${playlistId}, \${track.id})">Remove</button>
+                            </div>
+                        </div>
+                    \`).join('');
+                }
+                
+                tracksDiv.style.display = 'block';
+            } catch (error) {
+                showStatus(\`Failed to load playlist tracks: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function showAddToPlaylistModal(trackId, trackName) {
+            if (playlists.length === 0) {
+                showStatus('Create a playlist first before adding tracks', 'error');
+                return;
+            }
+            
+            const playlistOptions = playlists.map(p => \`\${p.id}: \${p.name}\`).join('\\n');
+            const choice = prompt(\`Select playlist to add "\${trackName}" to:\\n\\n\${playlistOptions}\\n\\nEnter playlist ID:\`);
+            
+            if (!choice) return;
+            
+            const playlistId = parseInt(choice);
+            const playlist = playlists.find(p => p.id === playlistId);
+            
+            if (!playlist) {
+                showStatus('Invalid playlist ID', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(\`/api/playlists/\${playlistId}/tracks\`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ trackId })
+                });
+                
+                if (response.ok) {
+                    showStatus(\`Track added to "\${playlist.name}"\`);
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to add track to playlist');
+                }
+            } catch (error) {
+                showStatus(\`Failed to add track to playlist: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function removeFromPlaylist(playlistId, trackId) {
+            try {
+                const response = await fetch(\`/api/playlists/\${playlistId}/tracks/\${trackId}\`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showStatus('Track removed from playlist');
+                    togglePlaylistTracks(playlistId); // Refresh the playlist view
+                } else {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to remove track from playlist');
+                }
+            } catch (error) {
+                showStatus(\`Failed to remove track from playlist: \${error.message}\`, 'error');
+            }
+        }
+        
+        // Handle Enter key for playlist creation
+        document.getElementById('playlistNameInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                createPlaylist();
+            }
+        });
+        
+        // Load file list and playlists on page load
         loadFileList();
+        loadPlaylists();
     </script>
 </body>
 </html>`
@@ -509,6 +793,198 @@ app.delete('/delete/:filename', async (c) => {
     return c.json({ message: `File ${filename} deleted successfully` })
   } catch (error) {
     return c.json({ error: 'Failed to delete file' }, 500)
+  }
+})
+
+// Playlist endpoints
+
+// Get all playlists
+app.get('/api/playlists', async (c) => {
+  try {
+    const { results } = await c.env.MUSIC_DB.prepare(`
+      SELECT id, name, created_at, updated_at FROM playlists 
+      ORDER BY updated_at DESC
+    `).all<Playlist>()
+    
+    return c.json({ playlists: results })
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch playlists' }, 500)
+  }
+})
+
+// Create a new playlist
+app.post('/api/playlists', async (c) => {
+  try {
+    const { name } = await c.req.json()
+    
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return c.json({ error: 'Playlist name is required' }, 400)
+    }
+    
+    const result = await c.env.MUSIC_DB.prepare(`
+      INSERT INTO playlists (name) VALUES (?)
+    `).bind(name.trim()).run()
+    
+    return c.json({ 
+      message: 'Playlist created successfully',
+      id: result.meta.last_row_id,
+      name: name.trim()
+    })
+  } catch (error) {
+    return c.json({ error: 'Failed to create playlist' }, 500)
+  }
+})
+
+// Update playlist name
+app.put('/api/playlists/:id', async (c) => {
+  try {
+    const playlistId = parseInt(c.req.param('id'))
+    const { name } = await c.req.json()
+    
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return c.json({ error: 'Playlist name is required' }, 400)
+    }
+    
+    const result = await c.env.MUSIC_DB.prepare(`
+      UPDATE playlists SET name = ?, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `).bind(name.trim(), playlistId).run()
+    
+    if (result.changes === 0) {
+      return c.json({ error: 'Playlist not found' }, 404)
+    }
+    
+    return c.json({ 
+      message: 'Playlist updated successfully',
+      id: playlistId,
+      name: name.trim()
+    })
+  } catch (error) {
+    return c.json({ error: 'Failed to update playlist' }, 500)
+  }
+})
+
+// Delete playlist
+app.delete('/api/playlists/:id', async (c) => {
+  try {
+    const playlistId = parseInt(c.req.param('id'))
+    
+    const result = await c.env.MUSIC_DB.prepare(`
+      DELETE FROM playlists WHERE id = ?
+    `).bind(playlistId).run()
+    
+    if (result.changes === 0) {
+      return c.json({ error: 'Playlist not found' }, 404)
+    }
+    
+    return c.json({ message: 'Playlist deleted successfully' })
+  } catch (error) {
+    return c.json({ error: 'Failed to delete playlist' }, 500)
+  }
+})
+
+// Get playlist with tracks
+app.get('/api/playlists/:id/tracks', async (c) => {
+  try {
+    const playlistId = parseInt(c.req.param('id'))
+    
+    // Get playlist info
+    const playlist = await c.env.MUSIC_DB.prepare(`
+      SELECT id, name, created_at, updated_at FROM playlists WHERE id = ?
+    `).bind(playlistId).first<Playlist>()
+    
+    if (!playlist) {
+      return c.json({ error: 'Playlist not found' }, 404)
+    }
+    
+    // Get tracks in playlist
+    const { results: tracks } = await c.env.MUSIC_DB.prepare(`
+      SELECT t.*, pt.position, pt.added_at as playlist_added_at
+      FROM tracks t
+      JOIN playlist_tracks pt ON t.id = pt.track_id
+      WHERE pt.playlist_id = ?
+      ORDER BY pt.position ASC
+    `).all()
+    
+    return c.json({ playlist, tracks })
+  } catch (error) {
+    return c.json({ error: 'Failed to fetch playlist tracks' }, 500)
+  }
+})
+
+// Add track to playlist
+app.post('/api/playlists/:id/tracks', async (c) => {
+  try {
+    const playlistId = parseInt(c.req.param('id'))
+    const { trackId } = await c.req.json()
+    
+    if (!trackId || typeof trackId !== 'number') {
+      return c.json({ error: 'Track ID is required' }, 400)
+    }
+    
+    // Check if playlist exists
+    const playlist = await c.env.MUSIC_DB.prepare(`
+      SELECT id FROM playlists WHERE id = ?
+    `).bind(playlistId).first()
+    
+    if (!playlist) {
+      return c.json({ error: 'Playlist not found' }, 404)
+    }
+    
+    // Check if track exists
+    const track = await c.env.MUSIC_DB.prepare(`
+      SELECT id FROM tracks WHERE id = ?
+    `).bind(trackId).first()
+    
+    if (!track) {
+      return c.json({ error: 'Track not found' }, 404)
+    }
+    
+    // Get next position
+    const nextPosition = await c.env.MUSIC_DB.prepare(`
+      SELECT COALESCE(MAX(position), -1) + 1 as next_position 
+      FROM playlist_tracks WHERE playlist_id = ?
+    `).bind(playlistId).first<{ next_position: number }>()
+    
+    // Add track to playlist
+    await c.env.MUSIC_DB.prepare(`
+      INSERT OR IGNORE INTO playlist_tracks (playlist_id, track_id, position) 
+      VALUES (?, ?, ?)
+    `).bind(playlistId, trackId, nextPosition?.next_position || 0).run()
+    
+    // Update playlist timestamp
+    await c.env.MUSIC_DB.prepare(`
+      UPDATE playlists SET updated_at = CURRENT_TIMESTAMP WHERE id = ?
+    `).bind(playlistId).run()
+    
+    return c.json({ message: 'Track added to playlist successfully' })
+  } catch (error) {
+    return c.json({ error: 'Failed to add track to playlist' }, 500)
+  }
+})
+
+// Remove track from playlist
+app.delete('/api/playlists/:id/tracks/:trackId', async (c) => {
+  try {
+    const playlistId = parseInt(c.req.param('id'))
+    const trackId = parseInt(c.req.param('trackId'))
+    
+    const result = await c.env.MUSIC_DB.prepare(`
+      DELETE FROM playlist_tracks WHERE playlist_id = ? AND track_id = ?
+    `).bind(playlistId, trackId).run()
+    
+    if (result.changes === 0) {
+      return c.json({ error: 'Track not found in playlist' }, 404)
+    }
+    
+    // Update playlist timestamp
+    await c.env.MUSIC_DB.prepare(`
+      UPDATE playlists SET updated_at = CURRENT_TIMESTAMP WHERE id = ?
+    `).bind(playlistId).run()
+    
+    return c.json({ message: 'Track removed from playlist successfully' })
+  } catch (error) {
+    return c.json({ error: 'Failed to remove track from playlist' }, 500)
   }
 })
 
