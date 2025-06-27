@@ -8,8 +8,10 @@ const app = new Hono<{ Bindings: Env }>()
 
 app.use(logger())
 
-app.route('/api/songs', songs)
-app.route('/api/playlists', playlists)
-app.route('/api/analytics', analytics)
+const routes = app
+    .route('/api/songs', songs)
+    .route('/api/playlists', playlists)
+    .route('/api/analytics', analytics)
 
 export default app
+export type AppType = typeof routes

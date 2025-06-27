@@ -8,9 +8,7 @@ interface Playlist {
 }
 
 const playlists = new Hono<{ Bindings: Env }>()
-
-// Get all playlists
-playlists.get('/', async (c) => {
+  .get('/', async (c) => {
   try {
     const { results } = await c.env.MUSIC_DB.prepare(`
       SELECT id, name, created_at, updated_at FROM playlists 
@@ -19,12 +17,11 @@ playlists.get('/', async (c) => {
 
     return c.json({ playlists: results })
   } catch (error) {
+    console.error('[PLAYLISTS] Failed to fetch playlists:', error)
     return c.json({ error: 'Failed to fetch playlists' }, 500)
   }
 })
-
-// Create a new playlist
-playlists.post('/', async (c) => {
+  .post('/', async (c) => {
   try {
     const { name } = await c.req.json()
 
@@ -42,12 +39,11 @@ playlists.post('/', async (c) => {
       name: name.trim()
     })
   } catch (error) {
+    console.error('[PLAYLISTS] Failed to create playlist:', error)
     return c.json({ error: 'Failed to create playlist' }, 500)
   }
 })
-
-// Update playlist name
-playlists.put('/:id', async (c) => {
+  .put('/:id', async (c) => {
   try {
     const playlistId = parseInt(c.req.param('id'))
     const { name } = await c.req.json()
@@ -71,12 +67,11 @@ playlists.put('/:id', async (c) => {
       name: name.trim()
     })
   } catch (error) {
+    console.error(`[PLAYLISTS] Failed to update playlist ID ${c.req.param('id')}:`, error)
     return c.json({ error: 'Failed to update playlist' }, 500)
   }
 })
-
-// Delete playlist
-playlists.delete('/:id', async (c) => {
+  .delete('/:id', async (c) => {
   try {
     const playlistId = parseInt(c.req.param('id'))
 
@@ -90,12 +85,11 @@ playlists.delete('/:id', async (c) => {
 
     return c.json({ message: 'Playlist deleted successfully' })
   } catch (error) {
+    console.error(`[PLAYLISTS] Failed to delete playlist ID ${c.req.param('id')}:`, error)
     return c.json({ error: 'Failed to delete playlist' }, 500)
   }
 })
-
-// Get playlist with tracks
-playlists.get('/:id/tracks', async (c) => {
+  .get('/:id/tracks', async (c) => {
   try {
     const playlistId = parseInt(c.req.param('id'))
 
@@ -119,13 +113,11 @@ playlists.get('/:id/tracks', async (c) => {
 
     return c.json({ playlist, tracks })
   } catch (error) {
-    console.log('Error fetching playlist tracks:', error)
+    console.error(`[PLAYLISTS] Failed to fetch tracks for playlist ID ${c.req.param('id')}:`, error)
     return c.json({ error: 'Failed to fetch playlist tracks' }, 500)
   }
 })
-
-// Add track to playlist
-playlists.post('/:id/tracks', async (c) => {
+  .post('/:id/tracks', async (c) => {
   try {
     const playlistId = parseInt(c.req.param('id'))
     const { trackId } = await c.req.json()
@@ -165,12 +157,11 @@ playlists.post('/:id/tracks', async (c) => {
 
     return c.json({ message: 'Track added to playlist successfully' })
   } catch (error) {
+    console.error(`[PLAYLISTS] Failed to add track to playlist ID ${c.req.param('id')}:`, error)
     return c.json({ error: 'Failed to add track to playlist' }, 500)
   }
 })
-
-// Remove track from playlist
-playlists.delete('/:id/tracks/:trackId', async (c) => {
+  .delete('/:id/tracks/:trackId', async (c) => {
   try {
     const playlistId = parseInt(c.req.param('id'))
     const trackId = parseInt(c.req.param('trackId'))
@@ -190,6 +181,7 @@ playlists.delete('/:id/tracks/:trackId', async (c) => {
 
     return c.json({ message: 'Track removed from playlist successfully' })
   } catch (error) {
+    console.error(`[PLAYLISTS] Failed to remove track ${c.req.param('trackId')} from playlist ID ${c.req.param('id')}:`, error)
     return c.json({ error: 'Failed to remove track from playlist' }, 500)
   }
 })

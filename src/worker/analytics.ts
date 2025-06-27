@@ -1,8 +1,7 @@
 import { Hono } from 'hono'
 
 const analytics = new Hono<{ Bindings: Env }>()
-
-analytics.post('/listen', async (c) => {
+  .post('/listen', async (c) => {
   const { track_id } = await c.req.json()
   
   if (!track_id || typeof track_id !== 'number') {
@@ -33,12 +32,11 @@ analytics.post('/listen', async (c) => {
 
     return c.json({ success: true })
   } catch (error) {
-    console.error('Error recording listening event:', error)
+    console.error(`[ANALYTICS] Failed to record listening event for track ID ${track_id}:`, error)
     return c.json({ error: 'Failed to record listening event', details: (error as any).message }, 500)
   }
 })
-
-analytics.get('/stats/:track_id', async (c) => {
+  .get('/stats/:track_id', async (c) => {
   const track_id = parseInt(c.req.param('track_id'))
   
   if (!track_id) {
@@ -59,7 +57,7 @@ analytics.get('/stats/:track_id', async (c) => {
 
     return c.json(result)
   } catch (error) {
-    console.error('Error fetching listening stats:', error)
+    console.error(`[ANALYTICS] Failed to fetch listening stats for track ID ${track_id}:`, error)
     return c.json({ error: 'Failed to fetch listening stats' }, 500)
   }
 })

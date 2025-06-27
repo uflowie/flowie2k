@@ -21,9 +21,7 @@ interface Track {
 }
 
 const songs = new Hono<{ Bindings: Env }>()
-
-// Upload a song
-songs.post('/upload/:filename', async (c) => {
+  .post('/upload/:filename', async (c) => {
   const filename = c.req.param('filename')
   const body = await c.req.arrayBuffer()
 
@@ -57,6 +55,7 @@ songs.post('/upload/:filename', async (c) => {
         thumbnailPath = thumbnailFilename
       }
     } catch (metadataError) {
+      console.error(`[UPLOAD] Failed to extract metadata from ${filename}:`, metadataError)
       // If metadata extraction fails, continue with basic info
     }
 
@@ -89,12 +88,11 @@ songs.post('/upload/:filename', async (c) => {
       }
     })
   } catch (error) {
+    console.error(`[UPLOAD] Upload failed for ${filename}:`, error)
     return c.json({ error: 'Upload failed' }, 500)
   }
 })
-
-// Get all songs
-songs.get('/', async (c) => {
+  .get('/', async (c) => {
   try {
     // Get metadata from D1 database with analytics statistics
     const { results } = await c.env.MUSIC_DB.prepare(`
@@ -115,12 +113,11 @@ songs.get('/', async (c) => {
 
     return c.json({ songs: results })
   } catch (error) {
+    console.error('[SONGS] Failed to list songs:', error)
     return c.json({ error: 'Failed to list files' }, 500)
   }
 })
-
-// Stream a song
-songs.get('/:id/stream', async (c) => {
+  .get('/:id/stream', async (c) => {
   const id = c.req.param('id')
 
   try {
@@ -171,12 +168,11 @@ songs.get('/:id/stream', async (c) => {
       return c.body(object.body)
     }
   } catch (error) {
+    console.error(`[STREAM] Failed to stream song ID ${id}:`, error)
     return c.json({ error: 'Failed to stream file' }, 500)
   }
 })
-
-// Get song thumbnail
-songs.get('/:id/thumbnail', async (c) => {
+  .get('/:id/thumbnail', async (c) => {
   const id = c.req.param('id')
 
   try {
@@ -204,12 +200,41 @@ songs.get('/:id/thumbnail', async (c) => {
 
     return c.body(thumbnail.body)
   } catch (error) {
+    console.error(`[THUMBNAIL] Failed to get thumbnail for song ID ${id}:`, error)
     return c.json({ error: 'Failed to get thumbnail' }, 500)
   }
 })
+  .get('/:id/download', async (c) => {
+  const id = c.req.param('id')
 
-// Delete a song
-songs.delete('/:id', async (c) => {
+  try {
+    // Get filename from database
+    const track = await c.env.MUSIC_DB.prepare(`
+      SELECT filename FROM tracks WHERE id = ?
+    `).bind(id).first<{ filename: string }>()
+
+    if (!track) {
+      return c.json({ error: 'Song not found' }, 404)
+    }
+
+    const object = await c.env.MUSIC_BUCKET.get(track.filename)
+
+    if (!object) {
+      return c.json({ error: 'File not found' }, 404)
+    }
+
+    // Return entire file content without range support
+    c.header('Content-Length', object.size.toString())
+    c.header('Content-Type', 'audio/mpeg')
+    c.header('Content-Disposition', `attachment; filename="${track.filename}"`)
+
+    return c.body(object.body)
+  } catch (error) {
+    console.error(`[DOWNLOAD] Failed to download song ID ${id}:`, error)
+    return c.json({ error: 'Failed to download file' }, 500)
+  }
+})
+  .delete('/:id', async (c) => {
   const id = c.req.param('id')
 
   console.log(`[DELETE] Starting delete operation for song ID: ${id}`)
