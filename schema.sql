@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS listening_events (
   track_id INTEGER NOT NULL,
   listened_for_seconds INTEGER NOT NULL DEFAULT 1,
   started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (track_id) REFERENCES tracks(id)
+  FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
 );
 
 -- Create indexes for performance
