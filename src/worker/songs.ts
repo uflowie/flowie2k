@@ -212,31 +212,45 @@ songs.get('/:id/thumbnail', async (c) => {
 songs.delete('/:id', async (c) => {
   const id = c.req.param('id')
 
+  console.log(`[DELETE] Starting delete operation for song ID: ${id}`)
+
   try {
     // Get track info from database
+    console.log(`[DELETE] Fetching track info for ID: ${id}`)
     const track = await c.env.MUSIC_DB.prepare(`
       SELECT filename, thumbnail_path FROM tracks WHERE id = ?
     `).bind(id).first<{ filename: string; thumbnail_path: string | null }>()
 
     if (!track) {
+      console.log(`[DELETE] Song not found for ID: ${id}`)
       return c.json({ error: 'Song not found' }, 404)
     }
 
+    console.log(`[DELETE] Found track: ${track.filename}, thumbnail: ${track.thumbnail_path || 'none'}`)
+
     // Delete from R2 storage
+    console.log(`[DELETE] Deleting audio file from R2: ${track.filename}`)
     await c.env.MUSIC_BUCKET.delete(track.filename)
+    console.log(`[DELETE] Audio file deleted successfully: ${track.filename}`)
 
     // Delete thumbnail if it exists
     if (track.thumbnail_path) {
+      console.log(`[DELETE] Deleting thumbnail from R2: ${track.thumbnail_path}`)
       await c.env.MUSIC_BUCKET.delete(track.thumbnail_path)
+      console.log(`[DELETE] Thumbnail deleted successfully: ${track.thumbnail_path}`)
     }
 
     // Delete from database (this will cascade delete play_events due to foreign key)
+    console.log(`[DELETE] Deleting track from database: ID ${id}`)
     await c.env.MUSIC_DB.prepare(`
       DELETE FROM tracks WHERE id = ?
     `).bind(id).run()
+    console.log(`[DELETE] Track deleted from database: ID ${id}`)
 
+    console.log(`[DELETE] Delete operation completed successfully for ID: ${id}`)
     return c.json({ message: `Song deleted successfully` })
   } catch (error) {
+    console.error(`[DELETE] Error deleting song ID ${id}:`, error)
     return c.json({ error: 'Failed to delete file' }, 500)
   }
 })
