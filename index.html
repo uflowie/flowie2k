@@ -6,12 +6,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Music Server Test</title>
   <style>
-    body {
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      height: 100%;
+      width: 100%;
       font-family: Arial, sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
       background: #f5f5f5;
+      overflow: hidden;
+    }
+    
+    #root {
+      height: 100vh;
+      width: 100vw;
     }
 
     .container {
@@ -271,7 +282,7 @@
   <div id="root"></div>
   <script type="module" src="/src/react-app/main.tsx"></script>
 
-  <div class="container">
+  <!-- <div class="container">
     <h1>VANILLA Music Server Test</h1>
 
     <div id="status"></div>
@@ -729,7 +740,7 @@
     // Load file list and playlists on page load
     loadFileList();
     loadPlaylists();
-  </script>
+  </script> -->
 </body>
 
 </html>

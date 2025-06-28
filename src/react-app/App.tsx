@@ -1,15 +1,8 @@
-import AdvancedAudioPlayer from "./AdvancedAudioPlayer";
 import "./App.css";
-import VanillaFrontend from "./VanillaFrontend";
+import MusicApp from "./MusicApp";
 
 function App() {
-
-  return (
-    <>
-      <VanillaFrontend />
-      <AdvancedAudioPlayer songId={1} />
-    </>
-  );
+  return <MusicApp />;
 }
 
 export default App;
