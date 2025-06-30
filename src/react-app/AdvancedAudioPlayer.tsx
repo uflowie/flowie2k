@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { client } from './api-client';
 import './AdvancedAudioPlayer.css';
 
 interface AdvancedAudioPlayerProps {
@@ -25,6 +24,8 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
   const startedAtRef = useRef<number>(0);
   const pausedAtRef = useRef<number>(0);
   const animationFrameRef = useRef<number | null>(null);
+  const currentSongIdRef = useRef<number | null>(null);
+  const shouldAutoPlayRef = useRef<boolean>(false);
 
   const [state, setState] = useState<AudioPlayerState>({
     isPlaying: false,
@@ -68,6 +69,18 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
   }, [state.isPlaying, state.duration, getCurrentPosition, updateState]);
 
   const loadSong = useCallback(async (id: number) => {
+    // Prevent loading the same song multiple times
+    if (currentSongIdRef.current === id && audioBufferRef.current) {
+      // Song already loaded, just set the auto-play flag
+      shouldAutoPlayRef.current = true;
+      return;
+    }
+
+    // Prevent double loading
+    if (state.isLoading) return;
+
+    currentSongIdRef.current = id;
+    shouldAutoPlayRef.current = true;
     updateState({ isLoading: true, error: null, status: 'Loading audio file...' });
     stop();
 
@@ -101,6 +114,7 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
       pausedAtRef.current = 0;
       startedAtRef.current = 0;
 
+
     } catch (error) {
       console.error('Error loading audio:', error);
       updateState({
@@ -109,7 +123,7 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
         status: 'Error loading audio file'
       });
     }
-  }, [updateState]);
+  }, [updateState, state.isLoading]);
 
   const play = useCallback(() => {
     if (!audioBufferRef.current || state.isPlaying || !audioContextRef.current) return;
@@ -281,6 +295,16 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
       loadSong(songId);
     }
   }, [songId, loadSong]);
+
+  // Auto-play when audio is loaded and shouldAutoPlay is true
+  useEffect(() => {
+    if (shouldAutoPlayRef.current && !state.isLoading && audioBufferRef.current && !state.isPlaying) {
+      shouldAutoPlayRef.current = false;
+      setTimeout(() => {
+        play();
+      }, 100);
+    }
+  }, [state.isLoading, state.isPlaying, play]);
 
   // Cleanup on unmount
   useEffect(() => {
