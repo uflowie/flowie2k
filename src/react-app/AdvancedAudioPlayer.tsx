@@ -26,6 +26,8 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
   const animationFrameRef = useRef<number | null>(null);
   const currentSongIdRef = useRef<number | null>(null);
   const shouldAutoPlayRef = useRef<boolean>(false);
+  const isPlayingRef = useRef<boolean>(false);
+  const seekPositionRef = useRef<number | null>(null);
 
   const [state, setState] = useState<AudioPlayerState>({
     isPlaying: false,
@@ -49,16 +51,21 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
   }, []);
 
   const getCurrentPosition = useCallback((): number => {
-    if (!state.isPlaying || !audioContextRef.current) {
+    // If we just seeked, return the seek position
+    if (seekPositionRef.current !== null) {
+      return seekPositionRef.current;
+    }
+
+    if (!isPlayingRef.current || !audioContextRef.current) {
       return pausedAtRef.current;
     }
 
     const elapsed = audioContextRef.current.currentTime - startedAtRef.current;
     return Math.min(pausedAtRef.current + elapsed * state.playbackRate, state.duration);
-  }, [state.isPlaying, state.playbackRate, state.duration]);
+  }, [state.playbackRate, state.duration]);
 
   const updateProgress = useCallback(() => {
-    if (!state.isPlaying) return;
+    if (!isPlayingRef.current) return;
 
     const currentPosition = getCurrentPosition();
     updateState({ currentTime: currentPosition });
@@ -66,7 +73,7 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
     if (currentPosition < state.duration) {
       animationFrameRef.current = requestAnimationFrame(updateProgress);
     }
-  }, [state.isPlaying, state.duration, getCurrentPosition, updateState]);
+  }, [state.duration, getCurrentPosition, updateState]);
 
   const loadSong = useCallback(async (id: number) => {
     // Prevent loading the same song multiple times
@@ -126,7 +133,19 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
   }, [updateState, state.isLoading]);
 
   const play = useCallback(() => {
-    if (!audioBufferRef.current || state.isPlaying || !audioContextRef.current) return;
+    if (!audioBufferRef.current || !audioContextRef.current) return;
+    
+    // Stop any existing playback before starting new one
+    if (sourceNodeRef.current) {
+      sourceNodeRef.current.onended = null;
+      sourceNodeRef.current.stop();
+      sourceNodeRef.current.disconnect();
+      sourceNodeRef.current = null;
+    }
+    if (gainNodeRef.current) {
+      gainNodeRef.current.disconnect();
+      gainNodeRef.current = null;
+    }
 
     // Create new source node
     const sourceNode = audioContextRef.current.createBufferSource();
@@ -155,9 +174,15 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
     sourceNodeRef.current = sourceNode;
     gainNodeRef.current = gainNode;
 
+    isPlayingRef.current = true;
     updateState({ isPlaying: true, status: 'Playing' });
+    
+    // Start progress updates
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
     updateProgress();
-  }, [state.isPlaying, state.playbackRate, state.volume, updateState, updateProgress]);
+  }, [state.playbackRate, state.volume, updateState, updateProgress]);
 
   const pause = useCallback(() => {
     if (!state.isPlaying || !audioContextRef.current) return;
@@ -187,6 +212,7 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
       animationFrameRef.current = null;
     }
 
+    isPlayingRef.current = false;
     updateState({
       isPlaying: false,
       status: 'Paused',
@@ -215,6 +241,7 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
     pausedAtRef.current = 0;
     startedAtRef.current = 0;
 
+    isPlayingRef.current = false;
     updateState({
       isPlaying: false,
       currentTime: 0,
@@ -251,20 +278,25 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
 
     // Set new position
     pausedAtRef.current = seekTime;
-    if (audioContextRef.current) {
-      startedAtRef.current = audioContextRef.current.currentTime;
-    }
-
+    seekPositionRef.current = seekTime;
+    
+    // Update visual position immediately
     updateState({
-      isPlaying: false,
       currentTime: seekTime
     });
 
+    // Clear seek position after a brief moment
+    setTimeout(() => {
+      seekPositionRef.current = null;
+    }, 100);
+
     // Restart if was playing
     if (wasPlaying) {
-      setTimeout(play, 0);
+      setTimeout(() => {
+        play();
+      }, 50);
     }
-  }, [state.duration, state.isPlaying, play, updateState]);
+  }, [state.duration, state.isPlaying, play, updateState, updateProgress]);
 
   const updatePlaybackRate = useCallback((newRate: number) => {
     if (state.isPlaying && sourceNodeRef.current && audioContextRef.current) {
