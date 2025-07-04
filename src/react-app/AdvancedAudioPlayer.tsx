@@ -44,7 +44,7 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
 
   const updateProgress = useCallback(() => {
     if (audioRef.current) {
-      updateState({ 
+      updateState({
         currentTime: audioRef.current.currentTime,
         isPlaying: !audioRef.current.paused
       });
@@ -68,7 +68,7 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
     try {
       if (!audioRef.current) {
         audioRef.current = new Audio();
-        
+
         // Set up event listeners
         audioRef.current.addEventListener('loadedmetadata', () => {
           if (audioRef.current) {
@@ -96,7 +96,7 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
       }
 
       // Set source and load
-      audioRef.current.src = `/api/songs/${id}/download`;
+      audioRef.current.src = `/api/songs/${id}/stream`;
       audioRef.current.load();
 
     } catch (error) {
@@ -111,7 +111,7 @@ const AdvancedAudioPlayer: React.FC<AdvancedAudioPlayerProps> = ({ songId }) => 
 
   const play = useCallback(async () => {
     if (!audioRef.current) return;
-    
+
     try {
       await audioRef.current.play();
       updateState({ isPlaying: true, status: 'Playing' });
