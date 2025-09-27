@@ -15,7 +15,8 @@
     "publish": true
   },
   "dependencies": {
-    "hono": "4.8.2",
+    "@rollup/rollup-win32-x64-msvc": "^4.52.3",
+    "hono": "^4.9.9",
     "music-metadata": "^11.4.0",
     "react": "19.0.0",
     "react-dom": "19.0.0"
