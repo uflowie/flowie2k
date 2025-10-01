@@ -1,8 +1,7 @@
 import "./App.css";
-import MusicApp from "./MusicApp";
 
 function App() {
-  return <MusicApp />;
+  return <div>Hello World</div>
 }
 
 export default App;
