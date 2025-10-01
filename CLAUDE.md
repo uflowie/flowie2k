@@ -28,10 +28,6 @@ npx wrangler d1 create music-server-db
 # Apply initial schema
 npx wrangler d1 execute music-server-db --local --file=schema.sql
 
-# Apply migrations
-npx wrangler d1 execute music-server-db --local --file=migration_add_thumbnail.sql
-npx wrangler d1 execute music-server-db --local --file=migration_remove_analytics.sql
-
 # For production database
 npx wrangler d1 execute music-server-db --file=schema.sql
 ```
