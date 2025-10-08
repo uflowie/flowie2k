@@ -31,6 +31,7 @@
     }
   },
   "include": [
-    "src/react-app"
+    "src/react-app",
+    "src/components"
   ]
 }
