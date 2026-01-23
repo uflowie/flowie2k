@@ -138,7 +138,6 @@ function AllSongs() {
         ) : (
           <div className="rounded-lg border">
             <Table>
-              <TableCaption>{`Showing ${songs.length} songs`}</TableCaption>
               <TableHeader>
                 <TableRow>
                   <TableHead>Title</TableHead>

@@ -3,16 +3,12 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupAction,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
-import { Plus, Music, ChartBar } from "lucide-react"
-import { Link } from "@tanstack/react-router"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useRef } from "react"
 import { uploadSong } from "@/react-app/lib/api"
@@ -20,6 +16,7 @@ import { uploadSong } from "@/react-app/lib/api"
 export function AppSidebar() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const queryClient = useQueryClient()
+  const playlists: string[] = []
   const uploadMutation = useMutation({
     mutationFn: uploadSong,
     onSuccess: () => {
@@ -48,42 +45,25 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Songs</SidebarGroupLabel>
-          <SidebarGroupAction
-            title={uploadMutation.isPending ? "Uploading..." : "Add Song"}
-            aria-label="Add Song"
-            disabled={uploadMutation.isPending}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Plus />
-          </SidebarGroupAction>
-          <input
-            ref={fileInputRef}
-            className="sr-only"
-            type="file"
-            accept="audio/*"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              uploadMutation.reset()
-              if (file) {
-                uploadMutation.mutate(file)
-              }
-            }}
-          />
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <Link to="/songs">
-                    <Music />
-                    <span>All</span>
-                  </Link>
+                <SidebarMenuButton type="button">
+                  <span>All Songs</span>
                 </SidebarMenuButton>
-                <SidebarMenuButton asChild>
-                  <Link to="/songs">
-                    <ChartBar />
-                    <span>Statistics</span>
-                  </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  type="button"
+                  disabled={uploadMutation.isPending}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <span>Upload Song</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton type="button">
+                  <span>Add New Playlist</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -92,15 +72,76 @@ export function AppSidebar() {
                 {uploadStatus}
               </p>
             ) : null}
+            <input
+              ref={fileInputRef}
+              className="sr-only"
+              type="file"
+              accept="audio/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                uploadMutation.reset()
+                if (file) {
+                  uploadMutation.mutate(file)
+                }
+              }}
+            />
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarSeparator />
 
         <SidebarGroup>
-          <SidebarGroupLabel>Playlists</SidebarGroupLabel>
-          <SidebarGroupAction title="Add Playlist">
-            <Plus />
-          </SidebarGroupAction>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton type="button">
+                  <span>Most Popular</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton type="button">
+                  <span>Most Recent</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton type="button">
+                  <span>Most Popular 30 days</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton type="button">
+                  <span>Most Popular 90 days</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton type="button">
+                  <span>Most Popular 365 days</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {playlists.length === 0 ? (
+                <SidebarMenuItem>
+                  <SidebarMenuButton type="button" disabled>
+                    <span>No playlists yet</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ) : (
+                playlists.map((playlist) => (
+                  <SidebarMenuItem key={playlist}>
+                    <SidebarMenuButton type="button">
+                      <span>{playlist}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter />
