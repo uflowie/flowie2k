@@ -3,8 +3,9 @@ import { logger } from 'hono/logger'
 import songs from './songs'
 import playlists from './playlists'
 import analytics from './analytics'
+import type { Bindings } from './bindings'
 
-const app = new Hono<{ Bindings: Env }>()
+const app = new Hono<{ Bindings: Bindings }>()
 
 app.use(logger())
 

@@ -13,7 +13,9 @@ CREATE TABLE IF NOT EXISTS tracks (
   file_size INTEGER NOT NULL,
   mime_type TEXT NOT NULL,
   uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  thumbnail_path TEXT
+  thumbnail_path TEXT,
+  seconds_listened INTEGER NOT NULL DEFAULT 0,
+  last_played DATETIME
 );
 
 -- Playlists table
@@ -21,7 +23,8 @@ CREATE TABLE IF NOT EXISTS playlists (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  last_played DATETIME
 );
 
 -- Junction table for playlist-track relationships

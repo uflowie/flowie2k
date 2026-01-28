@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { parseBuffer } from 'music-metadata'
+import type { Bindings } from './bindings'
 
 interface Track {
   id: number
@@ -13,14 +14,12 @@ interface Track {
   mime_type: string
   uploaded_at: string
   thumbnail_path?: string
-  listen_count: number
-  total_seconds: number
-  avg_seconds_per_session: number
-  first_listen?: string
-  last_listen?: string
+  seconds_listened: number
+  last_played?: string
+  window_seconds?: number
 }
 
-const songs = new Hono<{ Bindings: Env }>()
+const songs = new Hono<{ Bindings: Bindings }>()
   .post('/upload/:filename', async (c) => {
     const filename = c.req.param('filename')
     const body = await c.req.arrayBuffer()
@@ -94,22 +93,45 @@ const songs = new Hono<{ Bindings: Env }>()
   })
   .get('/', async (c) => {
     try {
-      // Get metadata from D1 database with analytics statistics
-      const { results } = await c.env.MUSIC_DB.prepare(`
+      const sort = c.req.query('sort')
+      const daysParam = c.req.query('days')
+      const days = daysParam ? parseInt(daysParam, 10) : undefined
+
+      if (sort === 'popular' && days && Number.isFinite(days)) {
+        const { results } = (await c.env.MUSIC_DB.prepare(`
+        SELECT 
+          t.id, t.filename, t.title, t.artist, t.album, t.genre, t.duration, 
+          t.file_size, t.mime_type, t.uploaded_at, t.thumbnail_path,
+          t.seconds_listened, t.last_played,
+          COALESCE(SUM(le.listened_for_seconds), 0) as window_seconds
+        FROM tracks t
+        LEFT JOIN listening_events le 
+          ON t.id = le.track_id 
+          AND le.started_at >= datetime('now', ?)
+        GROUP BY t.id, t.filename, t.title, t.artist, t.album, t.genre, t.duration, 
+                 t.file_size, t.mime_type, t.uploaded_at, t.thumbnail_path,
+                 t.seconds_listened, t.last_played
+        HAVING window_seconds > 0
+        ORDER BY window_seconds DESC, t.uploaded_at DESC
+      `).bind(`-${days} day`).all()) as { results: Track[] }
+
+        return c.json({ songs: results })
+      }
+
+      const orderBy =
+        sort === 'popular'
+          ? 't.seconds_listened DESC, t.uploaded_at DESC'
+          : 't.uploaded_at DESC'
+
+      const { results } = (await c.env.MUSIC_DB.prepare(`
       SELECT 
         t.id, t.filename, t.title, t.artist, t.album, t.genre, t.duration, 
         t.file_size, t.mime_type, t.uploaded_at, t.thumbnail_path,
-        COALESCE(COUNT(le.id), 0) as listen_count,
-        COALESCE(SUM(le.listened_for_seconds), 0) as total_seconds,
-        COALESCE(AVG(le.listened_for_seconds), 0) as avg_seconds_per_session,
-        MIN(le.started_at) as first_listen,
-        MAX(le.started_at) as last_listen
+        t.seconds_listened, t.last_played,
+        0 as window_seconds
       FROM tracks t
-      LEFT JOIN listening_events le ON t.id = le.track_id
-      GROUP BY t.id, t.filename, t.title, t.artist, t.album, t.genre, t.duration, 
-               t.file_size, t.mime_type, t.uploaded_at, t.thumbnail_path
-      ORDER BY t.uploaded_at DESC
-    `).all<Track>()
+      ORDER BY ${orderBy}
+    `).all()) as { results: Track[] }
 
       return c.json({ songs: results })
     } catch (error) {
@@ -122,9 +144,9 @@ const songs = new Hono<{ Bindings: Env }>()
 
     try {
       // Get filename from database
-      const track = await c.env.MUSIC_DB.prepare(`
+      const track = (await c.env.MUSIC_DB.prepare(`
       SELECT filename FROM tracks WHERE id = ?
-    `).bind(id).first<{ filename: string }>()
+    `).bind(id).first()) as { filename: string } | null
 
       if (!track) {
         return c.json({ error: 'Song not found' }, 404)
@@ -177,9 +199,9 @@ const songs = new Hono<{ Bindings: Env }>()
 
     try {
       // Get thumbnail path from database
-      const track = await c.env.MUSIC_DB.prepare(`
+      const track = (await c.env.MUSIC_DB.prepare(`
       SELECT thumbnail_path FROM tracks WHERE id = ?
-    `).bind(id).first<{ thumbnail_path: string | null }>()
+    `).bind(id).first()) as { thumbnail_path: string | null } | null
 
       if (!track || !track.thumbnail_path) {
         return c.json({ error: 'Thumbnail not found' }, 404)
@@ -212,9 +234,12 @@ const songs = new Hono<{ Bindings: Env }>()
     try {
       // Get track info from database
       console.log(`[DELETE] Fetching track info for ID: ${id}`)
-      const track = await c.env.MUSIC_DB.prepare(`
+      const track = (await c.env.MUSIC_DB.prepare(`
       SELECT filename, thumbnail_path FROM tracks WHERE id = ?
-    `).bind(id).first<{ filename: string; thumbnail_path: string | null }>()
+    `).bind(id).first()) as {
+        filename: string
+        thumbnail_path: string | null
+      } | null
 
       if (!track) {
         console.log(`[DELETE] Song not found for ID: ${id}`)
