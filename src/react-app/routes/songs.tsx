@@ -713,8 +713,6 @@ function AllSongs() {
 
   useEffect(() => {
     if (!playbackQueueSongs.length) {
-      setPlayQueue([])
-      setQueueIndex(0)
       setCurrentTime(0)
       setDuration(0)
       return
