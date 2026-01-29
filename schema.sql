@@ -4,7 +4,8 @@
 -- Music metadata table
 CREATE TABLE IF NOT EXISTS tracks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  filename TEXT NOT NULL UNIQUE,
+  filename TEXT NOT NULL,
+  storage_key TEXT NOT NULL UNIQUE,
   title TEXT,
   artist TEXT,
   album TEXT,

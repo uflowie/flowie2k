@@ -5,6 +5,7 @@ import type { Bindings } from './bindings'
 interface Track {
   id: number
   filename: string
+  storage_key?: string
   title?: string
   artist?: string
   album?: string
@@ -22,11 +23,15 @@ interface Track {
 const songs = new Hono<{ Bindings: Bindings }>()
   .post('/upload/:filename', async (c) => {
     const filename = c.req.param('filename')
+    const extensionMatch = filename.match(/\.[^/.]+$/)
+    const extension = extensionMatch ? extensionMatch[0] : ""
+    const baseId = crypto.randomUUID()
+    const storageKey = `tracks/${baseId}${extension}`
     const body = await c.req.arrayBuffer()
 
     try {
       // Upload original file to R2
-      await c.env.MUSIC_BUCKET.put(filename, body, {
+      await c.env.MUSIC_BUCKET.put(storageKey, body, {
         httpMetadata: {
           contentType: 'audio/mpeg'
         }
@@ -43,7 +48,7 @@ const songs = new Hono<{ Bindings: Bindings }>()
         // Extract and store album art if present
         if (parsedMetadata.common.picture && parsedMetadata.common.picture.length > 0) {
           const picture = parsedMetadata.common.picture[0]
-          const thumbnailFilename = `thumbnails/${filename.replace(/\.[^/.]+$/, '')}.${picture.format.split('/')[1] || 'jpg'}`
+          const thumbnailFilename = `thumbnails/${baseId}.${picture.format.split('/')[1] || 'jpg'}`
 
           await c.env.MUSIC_BUCKET.put(thumbnailFilename, picture.data, {
             httpMetadata: {
@@ -60,11 +65,22 @@ const songs = new Hono<{ Bindings: Bindings }>()
 
       // Store metadata in D1
       const result = await c.env.MUSIC_DB.prepare(`
-      INSERT OR REPLACE INTO tracks (
-        filename, title, artist, album, genre, duration, file_size, mime_type, thumbnail_path
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO tracks (
+        filename, storage_key, title, artist, album, genre, duration, file_size, mime_type, thumbnail_path
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(storage_key) DO UPDATE SET
+        filename = excluded.filename,
+        title = excluded.title,
+        artist = excluded.artist,
+        album = excluded.album,
+        genre = excluded.genre,
+        duration = excluded.duration,
+        file_size = excluded.file_size,
+        mime_type = excluded.mime_type,
+        thumbnail_path = excluded.thumbnail_path
     `).bind(
         filename,
+        storageKey,
         metadata.title || filename.replace(/\.[^/.]+$/, ""),
         metadata.artist || null,
         metadata.album || null,
@@ -75,10 +91,14 @@ const songs = new Hono<{ Bindings: Bindings }>()
         thumbnailPath
       ).run()
 
+      const track = (await c.env.MUSIC_DB.prepare(`
+        SELECT id FROM tracks WHERE storage_key = ?
+      `).bind(storageKey).first()) as { id: number } | null
+
       return c.json({
         message: `File ${filename} uploaded successfully`,
         size: body.byteLength,
-        id: result.meta.last_row_id,
+        id: track?.id ?? result.meta.last_row_id,
         metadata: {
           title: metadata.title,
           artist: metadata.artist,
@@ -145,14 +165,14 @@ const songs = new Hono<{ Bindings: Bindings }>()
     try {
       // Get filename from database
       const track = (await c.env.MUSIC_DB.prepare(`
-      SELECT filename FROM tracks WHERE id = ?
-    `).bind(id).first()) as { filename: string } | null
+      SELECT filename, storage_key FROM tracks WHERE id = ?
+    `).bind(id).first()) as { filename: string; storage_key: string } | null
 
       if (!track) {
         return c.json({ error: 'Song not found' }, 404)
       }
 
-      const object = await c.env.MUSIC_BUCKET.get(track.filename)
+      const object = await c.env.MUSIC_BUCKET.get(track.storage_key)
 
       if (!object) {
         return c.json({ error: 'File not found' }, 404)
@@ -167,7 +187,7 @@ const songs = new Hono<{ Bindings: Bindings }>()
         const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1
         const chunksize = (end - start) + 1
 
-        const rangeObject = await c.env.MUSIC_BUCKET.get(track.filename, {
+        const rangeObject = await c.env.MUSIC_BUCKET.get(track.storage_key, {
           range: { offset: start, length: chunksize }
         })
 
@@ -235,9 +255,10 @@ const songs = new Hono<{ Bindings: Bindings }>()
       // Get track info from database
       console.log(`[DELETE] Fetching track info for ID: ${id}`)
       const track = (await c.env.MUSIC_DB.prepare(`
-      SELECT filename, thumbnail_path FROM tracks WHERE id = ?
+      SELECT filename, storage_key, thumbnail_path FROM tracks WHERE id = ?
     `).bind(id).first()) as {
         filename: string
+        storage_key: string
         thumbnail_path: string | null
       } | null
 
@@ -249,9 +270,9 @@ const songs = new Hono<{ Bindings: Bindings }>()
       console.log(`[DELETE] Found track: ${track.filename}, thumbnail: ${track.thumbnail_path || 'none'}`)
 
       // Delete from R2 storage
-      console.log(`[DELETE] Deleting audio file from R2: ${track.filename}`)
-      await c.env.MUSIC_BUCKET.delete(track.filename)
-      console.log(`[DELETE] Audio file deleted successfully: ${track.filename}`)
+      console.log(`[DELETE] Deleting audio file from R2: ${track.storage_key}`)
+      await c.env.MUSIC_BUCKET.delete(track.storage_key)
+      console.log(`[DELETE] Audio file deleted successfully: ${track.storage_key}`)
 
       // Delete thumbnail if it exists
       if (track.thumbnail_path) {

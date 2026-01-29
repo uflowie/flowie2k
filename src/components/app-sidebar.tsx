@@ -10,15 +10,22 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { createPlaylist, fetchPlaylists, uploadSong } from "@/react-app/lib/api"
 import { usePlayer, type SmartPlaylist } from "@/react-app/lib/player"
 import { toast } from "sonner"
 
 export function AppSidebar() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const folderInputRef = useRef<HTMLInputElement | null>(null)
   const queryClient = useQueryClient()
   const { activePlaylist, setActivePlaylist } = usePlayer()
+  const [folderUploadProgress, setFolderUploadProgress] = useState<{
+    total: number
+    completed: number
+    failed: number
+    inProgress: boolean
+  } | null>(null)
   const uploadMutation = useMutation({
     mutationFn: uploadSong,
     onSuccess: () => {
@@ -31,6 +38,14 @@ export function AppSidebar() {
       }
     },
   })
+  const folderUploadStatus = folderUploadProgress
+    ? folderUploadProgress.inProgress
+      ? `Uploading folder... ${folderUploadProgress.completed}/${folderUploadProgress.total}`
+      : folderUploadProgress.failed > 0
+        ? `Folder upload finished (${folderUploadProgress.total - folderUploadProgress.failed}/${folderUploadProgress.total} ok)`
+        : `Folder upload complete (${folderUploadProgress.total})`
+    : null
+  const isFolderUploading = folderUploadProgress?.inProgress ?? false
   const uploadStatus = uploadMutation.isPending
     ? "Uploading..."
     : uploadMutation.isError
@@ -38,9 +53,14 @@ export function AppSidebar() {
         ? uploadMutation.error.message
         : "Upload failed."
       : null
-  const uploadStatusClass = uploadMutation.isError
-    ? "text-destructive"
-    : "text-muted-foreground"
+  const uploadStatusClass = folderUploadStatus
+    ? folderUploadProgress?.failed
+      ? "text-destructive"
+      : "text-muted-foreground"
+    : uploadMutation.isError
+      ? "text-destructive"
+      : "text-muted-foreground"
+  const mergedUploadStatus = folderUploadStatus ?? uploadStatus
   const {
     data: playlistsResponse,
     isLoading: playlistsLoading,
@@ -78,6 +98,51 @@ export function AppSidebar() {
     createPlaylistMutation.mutate(name.trim())
   }
 
+  const handleUploadFolder = async (files: File[]) => {
+    if (!files.length) {
+      return
+    }
+
+    const total = files.length
+    let completed = 0
+    let failed = 0
+    setFolderUploadProgress({
+      total,
+      completed,
+      failed,
+      inProgress: true,
+    })
+
+    for (const file of files) {
+      try {
+        await uploadSong(file)
+      } catch (error) {
+        failed += 1
+        console.error("[UPLOAD] Failed to upload file:", error)
+      } finally {
+        completed += 1
+        setFolderUploadProgress({
+          total,
+          completed,
+          failed,
+          inProgress: completed < total,
+        })
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["songs"] })
+
+    if (failed === 0) {
+      toast.success(`Uploaded ${completed} songs.`)
+    } else {
+      toast.error(`Uploaded ${completed - failed} of ${completed} songs.`)
+    }
+
+    if (folderInputRef.current) {
+      folderInputRef.current.value = ""
+    }
+  }
+
   return (
     <Sidebar>
       <SidebarContent>
@@ -87,10 +152,19 @@ export function AppSidebar() {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   type="button"
-                  disabled={uploadMutation.isPending}
+                  disabled={uploadMutation.isPending || isFolderUploading}
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <span>Upload Song</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  type="button"
+                  disabled={uploadMutation.isPending || isFolderUploading}
+                  onClick={() => folderInputRef.current?.click()}
+                >
+                  <span>Upload Folder</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
@@ -103,9 +177,9 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
-            {uploadStatus ? (
+            {mergedUploadStatus ? (
               <p className={`px-2 pt-2 text-xs ${uploadStatusClass}`}>
-                {uploadStatus}
+                {mergedUploadStatus}
               </p>
             ) : null}
             <input
@@ -119,6 +193,21 @@ export function AppSidebar() {
                 if (file) {
                   uploadMutation.mutate(file)
                 }
+              }}
+            />
+            <input
+              ref={folderInputRef}
+              className="sr-only"
+              type="file"
+              accept="audio/*"
+              multiple
+              // @ts-expect-error - nonstandard attribute for directory selection
+              webkitdirectory=""
+              // @ts-expect-error - Firefox folder picker support
+              mozdirectory=""
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? [])
+                void handleUploadFolder(files)
               }}
             />
           </SidebarGroupContent>
