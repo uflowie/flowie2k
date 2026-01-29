@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { parseBuffer } from 'music-metadata'
+import { parseBuffer, type IAudioMetadata } from 'music-metadata'
 import type { Bindings } from './bindings'
 
 interface Track {
@@ -37,7 +37,7 @@ const songs = new Hono<{ Bindings: Bindings }>()
         }
       })
 
-      let metadata: any = {}
+      let metadata: Partial<IAudioMetadata["common"]> = {}
       let thumbnailPath: string | null = null
 
       try {

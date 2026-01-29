@@ -2,8 +2,7 @@ import { hc } from "hono/client"
 
 import type { AppType } from "@/worker"
 
-const baseUrl =
-  typeof window === "undefined" ? "http://localhost" : window.location.origin
+const baseUrl = window.location.origin
 
 export const honoClient = hc<AppType>(baseUrl)
 
@@ -79,7 +78,7 @@ export const addTrackToPlaylist = async (
   const response = await honoClient.api.playlists[":id"].tracks.$post({
     param: { id: encodeURIComponent(String(playlistId)) },
     json: { trackId },
-  } as any)
+  })
 
   if (!response.ok) {
     let message = `Failed to add track (${response.status})`

@@ -55,12 +55,13 @@ const analytics = new Hono<{ Bindings: Bindings }>()
 
       return c.json({ success: true })
     } catch (error) {
+      const details = error instanceof Error ? error.message : String(error)
       console.error(
         `[ANALYTICS] Failed to record listening event for track ID ${track_id}:`,
         error
       )
       return c.json(
-        { error: 'Failed to record listening event', details: (error as any).message },
+        { error: 'Failed to record listening event', details },
         500
       )
     }
