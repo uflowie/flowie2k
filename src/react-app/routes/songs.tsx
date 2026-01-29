@@ -655,7 +655,10 @@ function AllSongs() {
   }
 
   return (
-    <div className="flex min-h-svh flex-1 flex-col">
+    <div
+      className="flex h-svh flex-1 flex-col overflow-y-scroll"
+      style={{ scrollbarGutter: "stable" }}
+    >
       <div className="space-y-6 p-6 pb-32">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -708,9 +711,9 @@ function AllSongs() {
           </div>
         ) : (
           <div className="rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
+            <Table containerClassName="overflow-visible">
+              <TableHeader className="sticky top-0 z-10 bg-card">
+                <TableRow className="bg-card">
                   <TableHead>Title</TableHead>
                   <TableHead>Artist</TableHead>
                   <TableHead>Album</TableHead>
