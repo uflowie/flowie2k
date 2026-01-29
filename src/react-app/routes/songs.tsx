@@ -569,9 +569,11 @@ function AllSongs() {
 
     return (
       <TableHead className={className} aria-sort={ariaSort}>
-        <button
+        <Button
           type="button"
-          className="text-foreground flex items-center gap-1 text-left font-medium"
+          variant="ghost"
+          size="sm"
+          className="text-foreground h-auto px-0 py-0 text-left font-medium hover:bg-transparent"
           onClick={() => handleSort(key)}
         >
           <span>{label}</span>
@@ -584,7 +586,7 @@ function AllSongs() {
           ) : (
             <ArrowUpDown className="size-3 text-muted-foreground/60" />
           )}
-        </button>
+        </Button>
       </TableHead>
     )
   }
@@ -1073,11 +1075,13 @@ function AllSongs() {
                 </div>
               ) : (
                 playlists.map((playlist) => (
-                  <button
+                  <Button
                     key={playlist.id}
                     type="button"
-                    className="hover:bg-accent hover:text-accent-foreground block w-full rounded-sm px-2 py-1.5 text-left text-xs"
+                    variant="ghost"
+                    size="sm"
                     role="menuitem"
+                    className="w-full justify-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
                     onClick={(event) => {
                       event.stopPropagation()
                       addToPlaylistMutation.mutate({
@@ -1088,7 +1092,7 @@ function AllSongs() {
                     }}
                   >
                     Add to {playlist.name}
-                  </button>
+                  </Button>
                 ))
               )}
             </div>
@@ -1224,9 +1228,19 @@ function AllSongs() {
                 if (typeof next !== "number") {
                   return
                 }
+                if (!isSeeking) {
+                  return
+                }
                 if (next !== currentTime) {
                   handleSeek(next)
                 }
+              }}
+              onValueCommit={(value) => {
+                const next = value[0]
+                if (typeof next !== "number") {
+                  return
+                }
+                handleSeek(next)
               }}
               className="w-full"
               disabled={!currentSongId || !duration}

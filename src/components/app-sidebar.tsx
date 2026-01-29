@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRef, useState } from "react"
+import { Input } from "@/components/ui/input"
 import { createPlaylist, fetchPlaylists, uploadSong } from "@/react-app/lib/api"
 import { usePlayer, type SmartPlaylist } from "@/react-app/lib/player"
 import { toast } from "sonner"
@@ -182,7 +183,7 @@ export function AppSidebar() {
                 {mergedUploadStatus}
               </p>
             ) : null}
-            <input
+            <Input
               ref={fileInputRef}
               className="sr-only"
               type="file"
@@ -195,7 +196,7 @@ export function AppSidebar() {
                 }
               }}
             />
-            <input
+            <Input
               ref={folderInputRef}
               className="sr-only"
               type="file"

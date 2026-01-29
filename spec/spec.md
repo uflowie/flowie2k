@@ -9,11 +9,9 @@ The Sidebar is split into sections. Sections don't include a header.
 
 ### Second Section
 1. All Songs
-2. Most Popular (All Songs ordered by seconds listened)
-3. Most Recent (All Songs ordered by date added)
-4. Most Popular 30 days (All Songs that were played in the last 30 days ordered by seconds listened)
-5. Most Popular 90 days
-6. Most Popular 365 days
+2. Most Popular 30 days (All Songs that were played in the last 30 days ordered by time listened)
+3. Most Popular 90 days
+4. Most Popular 365 days
 
 ### Third Section
 All Custom Playlists ordered by last played
@@ -47,11 +45,13 @@ Volume, Playback Speed, Shuffle and Repeat song need to be persisted in localsto
 ## Song Table
 ### Search
 Provide a single search input to the right of the playlist header. The search filters the visible songs in the current playlist by matching song title, artist, or album text.
+### Sorting
+All Songs and custom playlists can be sorted by clicking table headers. Sorting should also drive playback order when shuffle is off.
 
 
 # Data
 ## Listening Events
-- Seconds listened
+- Time listened
 - Started listening timestamp
 
 ## Song Metadata
