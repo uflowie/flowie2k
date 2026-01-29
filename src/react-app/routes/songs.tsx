@@ -233,6 +233,9 @@ function AllSongs() {
   const [isSeeking, setIsSeeking] = useState(false)
   const [openMenuSongId, setOpenMenuSongId] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [listeningDeltas, setListeningDeltas] = useState<Record<number, number>>(
+    {},
+  )
   const [menuAnchor, setMenuAnchor] = useState<DOMRect | null>(null)
   const [menuPosition, setMenuPosition] = useState<{ left: number; top: number } | null>(
     null,
@@ -303,6 +306,22 @@ function AllSongs() {
       null
     )
   }, [playbackSongs, songs, currentSongId])
+  const baseListeningSeconds = (song: PlaylistSong) => {
+    if (activePlaylist.type === "smart" && activePlaylist.days) {
+      return "window_seconds" in song
+        ? (song.window_seconds as number | null)
+        : null
+    }
+
+    return "seconds_listened" in song
+      ? (song.seconds_listened as number | null)
+      : null
+  }
+  const displayListeningSeconds = (song: PlaylistSong) => {
+    const base = baseListeningSeconds(song) ?? 0
+    const delta = listeningDeltas[song.id] ?? 0
+    return base + delta
+  }
   const normalizedSearch = searchQuery.trim().toLowerCase()
   const filteredSongs = useMemo(() => {
     if (!normalizedSearch) {
@@ -321,6 +340,18 @@ function AllSongs() {
       )
     })
   }, [songs, normalizedSearch])
+  const isPopularSort =
+    activePlaylist.type === "smart" && activePlaylist.sort === "popular"
+  const orderedSongs = useMemo(() => {
+    if (!isPopularSort) {
+      return filteredSongs
+    }
+
+    return [...filteredSongs].sort(
+      (first, second) =>
+        displayListeningSeconds(second) - displayListeningSeconds(first),
+    )
+  }, [filteredSongs, isPopularSort, listeningDeltas])
   const hasSearch = normalizedSearch.length > 0
 
   useEffect(() => {
@@ -328,6 +359,10 @@ function AllSongs() {
       setPlaybackPlaylist(activePlaylist)
     }
   }, [activePlaylist, currentSongId])
+
+  useEffect(() => {
+    setListeningDeltas({})
+  }, [playlistKey])
 
   useEffect(() => {
     currentSongIdRef.current = currentSongId
@@ -467,6 +502,10 @@ function AllSongs() {
       }).catch(() => {
         // Listening analytics are best-effort.
       })
+      setListeningDeltas((previous) => ({
+        ...previous,
+        [currentSongId]: (previous[currentSongId] ?? 0) + 1,
+      }))
     }
 
     tick()
@@ -720,8 +759,8 @@ function AllSongs() {
                   <TableHead>Duration</TableHead>
                   <TableHead>
                     {activePlaylist.type === "smart" && activePlaylist.days
-                      ? `Seconds listened (${activePlaylist.days}d)`
-                      : "Seconds listened"}
+                      ? `Time listened (${activePlaylist.days}d)`
+                      : "Time listened"}
                   </TableHead>
                   <TableHead>Last played</TableHead>
                   <TableHead>Date added</TableHead>
@@ -729,7 +768,7 @@ function AllSongs() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredSongs.map((song) => (
+                {orderedSongs.map((song) => (
                   <TableRow
                     key={song.id}
                     className="cursor-pointer select-none focus-visible:outline-none"
@@ -743,15 +782,7 @@ function AllSongs() {
                     <TableCell>{song.album ?? "--"}</TableCell>
                     <TableCell>{formatDuration(song.duration)}</TableCell>
                     <TableCell>
-                      {formatListeningTime(
-                        activePlaylist.type === "smart" && activePlaylist.days
-                          ? ("window_seconds" in song
-                            ? (song.window_seconds as number | null)
-                            : null)
-                          : "seconds_listened" in song
-                            ? (song.seconds_listened as number | null)
-                            : null,
-                      )}
+                      {formatListeningTime(displayListeningSeconds(song))}
                     </TableCell>
                     <TableCell>
                       {formatDate(
