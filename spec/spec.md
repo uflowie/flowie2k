@@ -44,6 +44,11 @@ Volume, Playback Speed, Shuffle and Repeat song need to be persisted in localsto
 5. Switching playlists (navigation or creation) must never change the currently playing song. Only explicitly clicking a song starts playback.
 6. If no song has been selected yet, pressing Play starts the first song in the current playlist.
 
+## Song Table
+### Search
+Provide a single search input to the right of the playlist header. The search filters the visible songs in the current playlist by matching song title, artist, or album text.
+
+
 # Data
 ## Listening Events
 - Seconds listened

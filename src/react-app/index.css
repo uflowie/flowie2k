@@ -118,9 +118,19 @@
     font-size: 70%;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground cursor-default;
   }
   input[type="range"] {
-    @apply h-1;
+    @apply h-1 cursor-pointer;
+  }
+  input[type="text"],
+  input[type="search"],
+  textarea {
+    @apply cursor-text;
+  }
+  button,
+  a,
+  [role="button"] {
+    @apply cursor-pointer;
   }
 }

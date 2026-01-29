@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Table,
   TableBody,
@@ -231,6 +232,7 @@ function AllSongs() {
   const [duration, setDuration] = useState(0)
   const [isSeeking, setIsSeeking] = useState(false)
   const [openMenuSongId, setOpenMenuSongId] = useState<number | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
   const [menuAnchor, setMenuAnchor] = useState<DOMRect | null>(null)
   const [menuPosition, setMenuPosition] = useState<{ left: number; top: number } | null>(
     null,
@@ -301,6 +303,25 @@ function AllSongs() {
       null
     )
   }, [playbackSongs, songs, currentSongId])
+  const normalizedSearch = searchQuery.trim().toLowerCase()
+  const filteredSongs = useMemo(() => {
+    if (!normalizedSearch) {
+      return songs
+    }
+
+    const matches = (value?: string | null) =>
+      Boolean(value && value.toLowerCase().includes(normalizedSearch))
+
+    return songs.filter((song) => {
+      const title = getSongTitle(song)
+      return (
+        matches(title) ||
+        matches(song.artist ?? null) ||
+        matches(song.album ?? null)
+      )
+    })
+  }, [songs, normalizedSearch])
+  const hasSearch = normalizedSearch.length > 0
 
   useEffect(() => {
     if (!currentSongId) {
@@ -642,8 +663,22 @@ function AllSongs() {
               <h1 className="text-2xl font-bold">{activePlaylist.name}</h1>
             </div>
           </div>
-          <div className="text-sm text-muted-foreground">
-            {isLoading ? "Loading songs..." : `${songs.length} songs`}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="text-sm text-muted-foreground">
+              {isLoading
+                ? "Loading songs..."
+                : hasSearch
+                  ? `${filteredSongs.length} of ${songs.length} songs`
+                  : `${songs.length} songs`}
+            </div>
+            <Input
+              type="search"
+              placeholder="Search playlist"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="w-56 sm:w-64"
+              aria-label="Search playlist"
+            />
           </div>
         </div>
         {isLoading ? (
@@ -667,6 +702,10 @@ function AllSongs() {
                 ? `No songs played in the last ${activePlaylist.days} days.`
                 : "No songs yet. Upload a track to get started."}
           </div>
+        ) : filteredSongs.length === 0 ? (
+          <div className="text-muted-foreground rounded-lg border p-6">
+            No songs match "{searchQuery.trim()}".
+          </div>
         ) : (
           <div className="rounded-lg border">
             <Table>
@@ -687,7 +726,7 @@ function AllSongs() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {songs.map((song) => (
+                {filteredSongs.map((song) => (
                   <TableRow
                     key={song.id}
                     className="cursor-pointer select-none focus-visible:outline-none"
@@ -872,7 +911,7 @@ function AllSongs() {
                   type="range"
                   min={0.5}
                   max={1.5}
-                  step={0.05}
+                  step={0.01}
                   value={playbackRate}
                   onChange={(event) =>
                     setPlaybackRate(
