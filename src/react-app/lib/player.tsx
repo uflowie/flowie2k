@@ -3,7 +3,7 @@ import type { ReactNode } from "react"
 
 export type SmartPlaylist = {
   type: "smart"
-  id: "all" | "popular" | "recent" | "popular-30" | "popular-90" | "popular-365"
+  id: "all" | "popular-30" | "popular-90" | "popular-365"
   name: string
   sort: "popular" | "recent"
   days?: number

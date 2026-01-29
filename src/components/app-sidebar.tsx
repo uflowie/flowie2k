@@ -241,44 +241,6 @@ export function AppSidebar() {
                   type="button"
                   isActive={
                     activePlaylist.type === "smart" &&
-                    activePlaylist.id === "popular"
-                  }
-                  onClick={() =>
-                    selectSmartPlaylist({
-                      type: "smart",
-                      id: "popular",
-                      name: "Most Popular",
-                      sort: "popular",
-                    })
-                  }
-                >
-                  <span>Most Popular</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  type="button"
-                  isActive={
-                    activePlaylist.type === "smart" &&
-                    activePlaylist.id === "recent"
-                  }
-                  onClick={() =>
-                    selectSmartPlaylist({
-                      type: "smart",
-                      id: "recent",
-                      name: "Most Recent",
-                      sort: "recent",
-                    })
-                  }
-                >
-                  <span>Most Recent</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  type="button"
-                  isActive={
-                    activePlaylist.type === "smart" &&
                     activePlaylist.id === "popular-30"
                   }
                   onClick={() =>

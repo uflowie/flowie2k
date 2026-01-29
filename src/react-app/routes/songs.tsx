@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Gauge,
   MoreVertical,
   Pause,
@@ -16,6 +19,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Slider } from "@/components/ui/slider"
 import {
   Table,
   TableBody,
@@ -207,6 +211,15 @@ const readStoredBoolean = (key: string, fallback: boolean) => {
   return stored === "true"
 }
 
+type SortKey =
+  | "title"
+  | "artist"
+  | "album"
+  | "duration"
+  | "time"
+  | "lastPlayed"
+  | "dateAdded"
+
 function AllSongs() {
   const { activePlaylist } = usePlayer()
   const queryClient = useQueryClient()
@@ -236,6 +249,10 @@ function AllSongs() {
   const [listeningDeltas, setListeningDeltas] = useState<Record<number, number>>(
     {},
   )
+  const [tableSort, setTableSort] = useState<{
+    key: SortKey
+    direction: "asc" | "desc"
+  } | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<DOMRect | null>(null)
   const [menuPosition, setMenuPosition] = useState<{ left: number; top: number } | null>(
     null,
@@ -246,6 +263,12 @@ function AllSongs() {
   const isPlayingRef = useRef(false)
   const shouldAutoPlayRef = useRef(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const playbackRateValue = useMemo(() => [playbackRate], [playbackRate])
+  const volumeValue = useMemo(() => [volume], [volume])
+  const seekValue = useMemo(
+    () => [Math.min(currentTime, duration || 0)],
+    [currentTime, duration],
+  )
 
   const playlistKey =
     activePlaylist.type === "custom"
@@ -306,8 +329,17 @@ function AllSongs() {
       null
     )
   }, [playbackSongs, songs, currentSongId])
-  const baseListeningSeconds = (song: PlaylistSong) => {
-    if (activePlaylist.type === "smart" && activePlaylist.days) {
+  const isSortablePlaylist =
+    activePlaylist.type === "custom" ||
+    (activePlaylist.type === "smart" && activePlaylist.id === "all")
+  const normalizedSearch = searchQuery.trim().toLowerCase()
+  const hasSearch = normalizedSearch.length > 0
+
+  const getListeningSecondsForPlaylist = (
+    song: PlaylistSong,
+    playlist: ActivePlaylist,
+  ) => {
+    if (playlist.type === "smart" && playlist.days) {
       return "window_seconds" in song
         ? (song.window_seconds as number | null)
         : null
@@ -317,42 +349,37 @@ function AllSongs() {
       ? (song.seconds_listened as number | null)
       : null
   }
-  const displayListeningSeconds = (song: PlaylistSong) => {
-    const base = baseListeningSeconds(song) ?? 0
+  const getDisplayListeningSeconds = (
+    song: PlaylistSong,
+    playlist: ActivePlaylist,
+  ) => {
+    const base = getListeningSecondsForPlaylist(song, playlist) ?? 0
     const delta = listeningDeltas[song.id] ?? 0
     return base + delta
   }
-  const normalizedSearch = searchQuery.trim().toLowerCase()
-  const filteredSongs = useMemo(() => {
-    if (!normalizedSearch) {
-      return songs
-    }
 
-    const matches = (value?: string | null) =>
-      Boolean(value && value.toLowerCase().includes(normalizedSearch))
-
-    return songs.filter((song) => {
-      const title = getSongTitle(song)
-      return (
-        matches(title) ||
-        matches(song.artist ?? null) ||
-        matches(song.album ?? null)
+  const orderSongsByListening = useMemo(() => {
+    return (items: PlaylistSong[], playlist: ActivePlaylist) =>
+      [...items].sort(
+        (first, second) =>
+          getDisplayListeningSeconds(second, playlist) -
+          getDisplayListeningSeconds(first, playlist),
       )
-    })
-  }, [songs, normalizedSearch])
-  const isPopularSort =
-    activePlaylist.type === "smart" && activePlaylist.sort === "popular"
-  const orderedSongs = useMemo(() => {
-    if (!isPopularSort) {
-      return filteredSongs
-    }
+  }, [listeningDeltas])
 
-    return [...filteredSongs].sort(
-      (first, second) =>
-        displayListeningSeconds(second) - displayListeningSeconds(first),
-    )
-  }, [filteredSongs, isPopularSort, listeningDeltas])
-  const hasSearch = normalizedSearch.length > 0
+  const activeOrderedSongs = useMemo(() => {
+    if (activePlaylist.type === "smart" && activePlaylist.sort === "popular") {
+      return orderSongsByListening(songs, activePlaylist)
+    }
+    return songs
+  }, [songs, activePlaylist, orderSongsByListening])
+
+  const playbackOrderedSongs = useMemo(() => {
+    if (playbackPlaylist.type === "smart" && playbackPlaylist.sort === "popular") {
+      return orderSongsByListening(playbackSongs, playbackPlaylist)
+    }
+    return playbackSongs
+  }, [playbackSongs, playbackPlaylist, orderSongsByListening])
 
   useEffect(() => {
     if (!currentSongId) {
@@ -362,6 +389,7 @@ function AllSongs() {
 
   useEffect(() => {
     setListeningDeltas({})
+    setTableSort(null)
   }, [playlistKey])
 
   useEffect(() => {
@@ -395,29 +423,6 @@ function AllSongs() {
       window.localStorage.setItem("player.repeat", String(repeat))
     }
   }, [repeat])
-
-  useEffect(() => {
-    if (!playbackSongs.length) {
-      setPlayQueue([])
-      setQueueIndex(0)
-      setCurrentTime(0)
-      setDuration(0)
-      return
-    }
-
-    const { queue, index } = buildQueue(
-      playbackSongs,
-      shuffle,
-      currentSongIdRef.current,
-    )
-    setPlayQueue(queue)
-    setQueueIndex(index)
-
-    if (currentSongIdRef.current && !queue.includes(currentSongIdRef.current)) {
-      // Only explicit song selection should switch playback.
-      shouldAutoPlayRef.current = false
-    }
-  }, [playbackSongs, shuffle])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -519,6 +524,214 @@ function AllSongs() {
     }
   }, [currentSongId, isPlaying, playbackPlaylist.type, playbackPlaylist.id])
 
+  const handleSort = (key: SortKey) => {
+    if (!isSortablePlaylist) {
+      return
+    }
+
+    const defaultDirection: Record<SortKey, "asc" | "desc"> = {
+      title: "asc",
+      artist: "asc",
+      album: "asc",
+      duration: "desc",
+      time: "desc",
+      lastPlayed: "desc",
+      dateAdded: "desc",
+    }
+
+    setTableSort((previous) => {
+      if (!previous || previous.key !== key) {
+        return { key, direction: defaultDirection[key] }
+      }
+      return {
+        key,
+        direction: previous.direction === "asc" ? "desc" : "asc",
+      }
+    })
+  }
+
+  const renderSortableHeader = (
+    label: string,
+    key: SortKey,
+    className?: string,
+  ) => {
+    if (!isSortablePlaylist) {
+      return <TableHead className={className}>{label}</TableHead>
+    }
+
+    const isActive = tableSort?.key === key
+    const direction = isActive ? tableSort?.direction : null
+    const ariaSort = isActive
+      ? direction === "asc"
+        ? "ascending"
+        : "descending"
+      : "none"
+
+    return (
+      <TableHead className={className} aria-sort={ariaSort}>
+        <button
+          type="button"
+          className="text-foreground flex items-center gap-1 text-left font-medium"
+          onClick={() => handleSort(key)}
+        >
+          <span>{label}</span>
+          {isActive ? (
+            direction === "asc" ? (
+              <ArrowUp className="size-3 text-muted-foreground" />
+            ) : (
+              <ArrowDown className="size-3 text-muted-foreground" />
+            )
+          ) : (
+            <ArrowUpDown className="size-3 text-muted-foreground/60" />
+          )}
+        </button>
+      </TableHead>
+    )
+  }
+
+  const applyTableSort = (items: PlaylistSong[]) => {
+    if (!tableSort) {
+      return items
+    }
+
+    const toDateValue = (value?: string | null) => {
+      if (!value) {
+        return null
+      }
+      const time = new Date(value).getTime()
+      return Number.isNaN(time) ? null : time
+    }
+
+    const getSortValue = (song: PlaylistSong) => {
+      switch (tableSort.key) {
+        case "title":
+          return getSongTitle(song)
+        case "artist":
+          return song.artist ?? null
+        case "album":
+          return song.album ?? null
+        case "duration":
+          return song.duration ?? null
+        case "time":
+          return getDisplayListeningSeconds(song, activePlaylist)
+        case "lastPlayed":
+          return "last_played" in song
+            ? toDateValue(song.last_played as string | null)
+            : null
+        case "dateAdded":
+          return toDateValue(song.uploaded_at)
+        default:
+          return null
+      }
+    }
+
+    const compareValues = (
+      first: string | number | null,
+      second: string | number | null,
+    ) => {
+      if (first === null && second === null) {
+        return 0
+      }
+      if (first === null) {
+        return 1
+      }
+      if (second === null) {
+        return -1
+      }
+      if (typeof first === "string" || typeof second === "string") {
+        return String(first).localeCompare(String(second), undefined, {
+          sensitivity: "base",
+        })
+      }
+      return first - second
+    }
+
+    const direction = tableSort.direction === "asc" ? 1 : -1
+
+    return [...items].sort((first, second) => {
+      const result = compareValues(getSortValue(first), getSortValue(second))
+      if (result !== 0) {
+        return result * direction
+      }
+      return getSongTitle(first).localeCompare(getSongTitle(second))
+    })
+  }
+
+  const activeSortedSongs = useMemo(() => {
+    if (!isSortablePlaylist || !tableSort) {
+      return activeOrderedSongs
+    }
+    return applyTableSort(activeOrderedSongs)
+  }, [
+    activeOrderedSongs,
+    isSortablePlaylist,
+    tableSort,
+    listeningDeltas,
+    activePlaylist.type,
+    activePlaylist.days,
+  ])
+
+  const visibleSongs = useMemo(() => {
+    if (!normalizedSearch) {
+      return activeSortedSongs
+    }
+
+    const matches = (value?: string | null) =>
+      Boolean(value && value.toLowerCase().includes(normalizedSearch))
+
+    return activeSortedSongs.filter((song) => {
+      const title = getSongTitle(song)
+      return (
+        matches(title) ||
+        matches(song.artist ?? null) ||
+        matches(song.album ?? null)
+      )
+    })
+  }, [activeSortedSongs, normalizedSearch])
+
+  const playbackQueueSongs = useMemo(() => {
+    if (
+      playbackPlaylistKey === playlistKey &&
+      isSortablePlaylist &&
+      tableSort
+    ) {
+      return applyTableSort(playbackOrderedSongs)
+    }
+    return playbackOrderedSongs
+  }, [
+    playbackOrderedSongs,
+    playbackPlaylistKey,
+    playlistKey,
+    isSortablePlaylist,
+    tableSort,
+    listeningDeltas,
+    activePlaylist.type,
+    activePlaylist.days,
+  ])
+
+  useEffect(() => {
+    if (!playbackQueueSongs.length) {
+      setPlayQueue([])
+      setQueueIndex(0)
+      setCurrentTime(0)
+      setDuration(0)
+      return
+    }
+
+    const { queue, index } = buildQueue(
+      playbackQueueSongs,
+      shuffle,
+      currentSongIdRef.current,
+    )
+    setPlayQueue(queue)
+    setQueueIndex(index)
+
+    if (currentSongIdRef.current && !queue.includes(currentSongIdRef.current)) {
+      // Only explicit song selection should switch playback.
+      shouldAutoPlayRef.current = false
+    }
+  }, [playbackQueueSongs, shuffle])
+
   const handleSelectSong = (song: PlaylistSong) => {
     if (currentSongId === song.id && audioRef.current) {
       audioRef.current.currentTime = 0
@@ -530,7 +743,7 @@ function AllSongs() {
     }
 
     setPlaybackPlaylist(activePlaylist)
-    const { queue, index } = buildQueue(songs, shuffle, song.id)
+    const { queue, index } = buildQueue(activeSortedSongs, shuffle, song.id)
     setPlayQueue(queue)
     setQueueIndex(index)
 
@@ -617,17 +830,21 @@ function AllSongs() {
     }
 
     if (!currentSongId) {
-      if (!songs.length) {
+      if (!activeSortedSongs.length) {
         return
       }
 
-      const firstSong = songs[0]
+      const firstSong = activeSortedSongs[0]
       if (!firstSong) {
         return
       }
 
       setPlaybackPlaylist(activePlaylist)
-      const { queue, index } = buildQueue(songs, shuffle, firstSong.id)
+      const { queue, index } = buildQueue(
+        activeSortedSongs,
+        shuffle,
+        firstSong.id,
+      )
       setPlayQueue(queue)
       setQueueIndex(index)
       shouldAutoPlayRef.current = true
@@ -710,7 +927,7 @@ function AllSongs() {
               {isLoading
                 ? "Loading songs..."
                 : hasSearch
-                  ? `${filteredSongs.length} of ${songs.length} songs`
+                  ? `${visibleSongs.length} of ${songs.length} songs`
                   : `${songs.length} songs`}
             </div>
             <Input
@@ -744,7 +961,7 @@ function AllSongs() {
                 ? `No songs played in the last ${activePlaylist.days} days.`
                 : "No songs yet. Upload a track to get started."}
           </div>
-        ) : filteredSongs.length === 0 ? (
+        ) : visibleSongs.length === 0 ? (
           <div className="text-muted-foreground rounded-lg border p-6">
             No songs match "{searchQuery.trim()}".
           </div>
@@ -753,22 +970,23 @@ function AllSongs() {
             <Table containerClassName="overflow-visible">
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow className="bg-card">
-                  <TableHead>Title</TableHead>
-                  <TableHead>Artist</TableHead>
-                  <TableHead>Album</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>
-                    {activePlaylist.type === "smart" && activePlaylist.days
+                  {renderSortableHeader("Title", "title")}
+                  {renderSortableHeader("Artist", "artist")}
+                  {renderSortableHeader("Album", "album")}
+                  {renderSortableHeader("Duration", "duration")}
+                  {renderSortableHeader(
+                    activePlaylist.type === "smart" && activePlaylist.days
                       ? `Time listened (${activePlaylist.days}d)`
-                      : "Time listened"}
-                  </TableHead>
-                  <TableHead>Last played</TableHead>
-                  <TableHead>Date added</TableHead>
+                      : "Time listened",
+                    "time",
+                  )}
+                  {renderSortableHeader("Last played", "lastPlayed")}
+                  {renderSortableHeader("Date added", "dateAdded")}
                   <TableHead className="w-12 text-right"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orderedSongs.map((song) => (
+                {visibleSongs.map((song) => (
                   <TableRow
                     key={song.id}
                     className="cursor-pointer select-none focus-visible:outline-none"
@@ -782,7 +1000,9 @@ function AllSongs() {
                     <TableCell>{song.album ?? "--"}</TableCell>
                     <TableCell>{formatDuration(song.duration)}</TableCell>
                     <TableCell>
-                      {formatListeningTime(displayListeningSeconds(song))}
+                      {formatListeningTime(
+                        getDisplayListeningSeconds(song, activePlaylist),
+                      )}
                     </TableCell>
                     <TableCell>
                       {formatDate(
@@ -941,18 +1161,23 @@ function AllSongs() {
             <div className="flex flex-wrap items-center gap-3 lg:justify-end">
               <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
                 <Gauge className="size-4" />
-                <input
-                  type="range"
+                <Slider
                   min={0.5}
                   max={1.5}
                   step={0.01}
-                  value={playbackRate}
-                  onChange={(event) =>
-                    setPlaybackRate(
-                      clamp(Number(event.target.value), 0.5, 1.5),
-                    )
-                  }
-                  className="accent-primary w-24"
+                  value={playbackRateValue}
+                  onValueChange={(value) => {
+                    const next = value[0]
+                    if (typeof next !== "number") {
+                      return
+                    }
+                    const clamped = clamp(next, 0.5, 1.5)
+                    if (clamped !== playbackRate) {
+                      setPlaybackRate(clamped)
+                    }
+                  }}
+                  className="w-24"
+                  aria-label="Playback speed"
                 />
                 <span className="w-8 text-right">
                   {Math.round(playbackRate * 100)}%
@@ -960,16 +1185,23 @@ function AllSongs() {
               </label>
               <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
                 <Volume2 className="size-4" />
-                <input
-                  type="range"
+                <Slider
                   min={0}
                   max={1}
                   step={0.01}
-                  value={volume}
-                  onChange={(event) =>
-                    setVolume(clamp(Number(event.target.value), 0, 1))
-                  }
-                  className="accent-primary w-24"
+                  value={volumeValue}
+                  onValueChange={(value) => {
+                    const next = value[0]
+                    if (typeof next !== "number") {
+                      return
+                    }
+                    const clamped = clamp(next, 0, 1)
+                    if (clamped !== volume) {
+                      setVolume(clamped)
+                    }
+                  }}
+                  className="w-24"
+                  aria-label="Volume"
                 />
                 <span className="w-8 text-right">
                   {Math.round(volume * 100)}%
@@ -979,16 +1211,24 @@ function AllSongs() {
           </div>
           <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
             <span className="w-10 text-right">{formatTime(currentTime)}</span>
-            <input
-              type="range"
+            <Slider
               min={0}
               max={duration || 0}
               step={0.25}
-              value={Math.min(currentTime, duration || 0)}
+              value={seekValue}
               onPointerDown={() => setIsSeeking(true)}
               onPointerUp={() => setIsSeeking(false)}
-              onChange={(event) => handleSeek(Number(event.target.value))}
-              className="accent-primary w-full"
+              onPointerCancel={() => setIsSeeking(false)}
+              onValueChange={(value) => {
+                const next = value[0]
+                if (typeof next !== "number") {
+                  return
+                }
+                if (next !== currentTime) {
+                  handleSeek(next)
+                }
+              }}
+              className="w-full"
               disabled={!currentSongId || !duration}
               aria-label="Seek"
             />
