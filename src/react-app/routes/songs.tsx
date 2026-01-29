@@ -749,7 +749,7 @@ function AllSongs() {
             No songs match "{searchQuery.trim()}".
           </div>
         ) : (
-          <div className="rounded-lg border">
+          <div className="rounded-lg border [overflow-anchor:none]">
             <Table containerClassName="overflow-visible">
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow className="bg-card">
