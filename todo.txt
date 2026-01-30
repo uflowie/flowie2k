@@ -1,0 +1,5 @@
+make the draggable dot on the range inputs a bit smaller
+
+migration - upload functionality for songs with statistics
+migration - swipe for songs i want to keep
+migration - get song statistics from foobar

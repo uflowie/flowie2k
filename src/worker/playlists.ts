@@ -1,19 +1,21 @@
 import { Hono } from 'hono'
+import type { Bindings } from './bindings'
 
 interface Playlist {
   id: number
   name: string
   created_at: string
   updated_at: string
+  last_played?: string | null
 }
 
-const playlists = new Hono<{ Bindings: Env }>()
+const playlists = new Hono<{ Bindings: Bindings }>()
   .get('/', async (c) => {
   try {
-    const { results } = await c.env.MUSIC_DB.prepare(`
-      SELECT id, name, created_at, updated_at FROM playlists 
-      ORDER BY updated_at DESC
-    `).all<Playlist>()
+    const { results } = (await c.env.MUSIC_DB.prepare(`
+      SELECT id, name, created_at, updated_at, last_played FROM playlists 
+      ORDER BY COALESCE(last_played, updated_at) DESC
+    `).all()) as { results: Playlist[] }
 
     return c.json({ playlists: results })
   } catch (error) {
@@ -94,9 +96,9 @@ const playlists = new Hono<{ Bindings: Env }>()
     const playlistId = parseInt(c.req.param('id'))
 
     // Get playlist info
-    const playlist = await c.env.MUSIC_DB.prepare(`
+    const playlist = (await c.env.MUSIC_DB.prepare(`
       SELECT id, name, created_at, updated_at FROM playlists WHERE id = ?
-    `).bind(playlistId).first<Playlist>()
+    `).bind(playlistId).first()) as Playlist | null
 
     if (!playlist) {
       return c.json({ error: 'Playlist not found' }, 404)

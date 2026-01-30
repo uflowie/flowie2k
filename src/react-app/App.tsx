@@ -1,8 +1,13 @@
 import "./App.css";
-import MusicApp from "./MusicApp";
+import { Button } from "@/components/ui/button"
+
 
 function App() {
-  return <MusicApp />;
+
+  return <div>
+    Hello World
+    <Button>Click Me</Button>
+  </div>
 }
 
 export default App;
