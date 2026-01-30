@@ -1,6 +1,23 @@
-import { Hono } from 'hono'
+import { Hono, type Env } from 'hono'
+import { zValidator, type Hook } from '@hono/zod-validator'
 import { parseBuffer, type IAudioMetadata } from 'music-metadata'
+import { z } from 'zod'
+import { Buffer } from 'node:buffer'
 import type { Bindings } from './bindings'
+
+const zodError = ((result, c) => {
+  if (!result.success) {
+    const message = result.error.issues[0]?.message ?? 'Invalid request'
+    return c.json({ error: message }, 400)
+  }
+}) satisfies Hook<
+  unknown,
+  Env,
+  string,
+  'json' | 'param' | 'query',
+  { error: string },
+  z.ZodType
+>
 
 interface Track {
   id: number
@@ -20,9 +37,22 @@ interface Track {
   window_seconds?: number
 }
 
+const uploadParamSchema = z.object({
+  filename: z.string().min(1, { message: 'Filename is required' })
+})
+
+const listQuerySchema = z.object({
+  sort: z.enum(['popular', 'recent']).optional(),
+  days: z.coerce.number().int().min(1).optional()
+})
+
+const idParamSchema = z.object({
+  id: z.coerce.number().int().positive()
+})
+
 const songs = new Hono<{ Bindings: Bindings }>()
-  .post('/upload/:filename', async (c) => {
-    const filename = c.req.param('filename')
+  .post('/upload/:filename', zValidator('param', uploadParamSchema, zodError), async (c) => {
+    const { filename } = c.req.valid('param')
     const extensionMatch = filename.match(/\.[^/.]+$/)
     const extension = extensionMatch ? extensionMatch[0] : ""
     const baseId = crypto.randomUUID()
@@ -39,11 +69,13 @@ const songs = new Hono<{ Bindings: Bindings }>()
 
       let metadata: Partial<IAudioMetadata["common"]> = {}
       let thumbnailPath: string | null = null
+      let durationSeconds: number | null = null
 
       try {
         // Extract metadata from MP3
         const parsedMetadata = await parseBuffer(Buffer.from(body))
         metadata = parsedMetadata.common
+        durationSeconds = parsedMetadata.format.duration ?? null
 
         // Extract and store album art if present
         if (parsedMetadata.common.picture && parsedMetadata.common.picture.length > 0) {
@@ -85,7 +117,7 @@ const songs = new Hono<{ Bindings: Bindings }>()
         metadata.artist || null,
         metadata.album || null,
         metadata.genre && metadata.genre.length > 0 ? metadata.genre[0] : null,
-        metadata.duration ? Math.round(metadata.duration) : null,
+        durationSeconds !== null ? Math.round(durationSeconds) : null,
         body.byteLength,
         'audio/mpeg',
         thumbnailPath
@@ -111,13 +143,11 @@ const songs = new Hono<{ Bindings: Bindings }>()
       return c.json({ error: 'Upload failed' }, 500)
     }
   })
-  .get('/', async (c) => {
+  .get('/', zValidator('query', listQuerySchema, zodError), async (c) => {
     try {
-      const sort = c.req.query('sort')
-      const daysParam = c.req.query('days')
-      const days = daysParam ? parseInt(daysParam, 10) : undefined
+      const { sort, days } = c.req.valid('query')
 
-      if (sort === 'popular' && days && Number.isFinite(days)) {
+      if (sort === 'popular' && days !== undefined) {
         const { results } = (await c.env.MUSIC_DB.prepare(`
         SELECT 
           t.id, t.filename, t.title, t.artist, t.album, t.genre, t.duration, 
@@ -159,8 +189,8 @@ const songs = new Hono<{ Bindings: Bindings }>()
       return c.json({ error: 'Failed to list files' }, 500)
     }
   })
-  .get('/:id/stream', async (c) => {
-    const id = c.req.param('id')
+  .get('/:id/stream', zValidator('param', idParamSchema, zodError), async (c) => {
+    const { id } = c.req.valid('param')
 
     try {
       // Get filename from database
@@ -214,8 +244,8 @@ const songs = new Hono<{ Bindings: Bindings }>()
       return c.json({ error: 'Failed to stream file' }, 500)
     }
   })
-  .get('/:id/thumbnail', async (c) => {
-    const id = c.req.param('id')
+  .get('/:id/thumbnail', zValidator('param', idParamSchema, zodError), async (c) => {
+    const { id } = c.req.valid('param')
 
     try {
       // Get thumbnail path from database
@@ -246,8 +276,8 @@ const songs = new Hono<{ Bindings: Bindings }>()
       return c.json({ error: 'Failed to get thumbnail' }, 500)
     }
   })
-  .delete('/:id', async (c) => {
-    const id = c.req.param('id')
+  .delete('/:id', zValidator('param', idParamSchema, zodError), async (c) => {
+    const { id } = c.req.valid('param')
 
     console.log(`[DELETE] Starting delete operation for song ID: ${id}`)
 

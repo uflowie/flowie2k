@@ -1,16 +1,43 @@
-import { Hono } from 'hono'
+import { Hono, type Env } from 'hono'
+import { zValidator, type Hook } from '@hono/zod-validator'
+import { z } from 'zod'
 import type { Bindings } from './bindings'
 
-const analytics = new Hono<{ Bindings: Bindings }>()
-  .post('/listen', async (c) => {
-    const { track_id, playlist_id } = await c.req.json()
+const zodError = ((result, c) => {
+  if (!result.success) {
+    const message = result.error.issues[0]?.message ?? 'Invalid request'
+    return c.json({ error: message }, 400)
+  }
+}) satisfies Hook<
+  unknown,
+  Env,
+  string,
+  'json' | 'param' | 'query',
+  { error: string },
+  z.ZodType
+>
+const listenBodySchema = z.object({
+  track_id: z
+    .number()
+    .int()
+    .positive({ message: 'Invalid track_id' }),
+  playlist_id: z
+    .number()
+    .int()
+    .positive({ message: 'Invalid playlist_id' })
+    .optional()
+})
 
-    if (!track_id || typeof track_id !== 'number') {
-      return c.json({ error: 'Invalid track_id' }, 400)
-    }
-    if (playlist_id !== undefined && typeof playlist_id !== 'number') {
-      return c.json({ error: 'Invalid playlist_id' }, 400)
-    }
+const statsParamSchema = z.object({
+  track_id: z.coerce
+    .number()
+    .int()
+    .positive({ message: 'Invalid track_id' })
+})
+
+const analytics = new Hono<{ Bindings: Bindings }>()
+  .post('/listen', zValidator('json', listenBodySchema, zodError), async (c) => {
+    const { track_id, playlist_id } = c.req.valid('json')
 
     try {
       const trackUpdate = await c.env.MUSIC_DB.prepare(`
@@ -24,7 +51,7 @@ const analytics = new Hono<{ Bindings: Bindings }>()
         return c.json({ error: 'Track not found' }, 404)
       }
 
-      if (playlist_id) {
+      if (playlist_id !== undefined) {
         await c.env.MUSIC_DB.prepare(`
           UPDATE playlists
           SET last_played = CURRENT_TIMESTAMP
@@ -66,12 +93,8 @@ const analytics = new Hono<{ Bindings: Bindings }>()
       )
     }
   })
-  .get('/stats/:track_id', async (c) => {
-    const track_id = parseInt(c.req.param('track_id'))
-
-    if (!track_id) {
-      return c.json({ error: 'Invalid track_id' }, 400)
-    }
+  .get('/stats/:track_id', zValidator('param', statsParamSchema, zodError), async (c) => {
+    const { track_id } = c.req.valid('param')
 
     try {
       const result = await c.env.MUSIC_DB.prepare(`
