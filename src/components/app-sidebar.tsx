@@ -11,16 +11,22 @@ import {
 } from "@/components/ui/sidebar"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRef, useState } from "react"
+import { Link, useNavigate } from "@tanstack/react-router"
 import { Input } from "@/components/ui/input"
 import { createPlaylist, fetchPlaylists, uploadSong } from "@/react-app/lib/api"
-import { usePlayer, type SmartPlaylist } from "@/react-app/lib/player"
+import {
+  usePlaybackStore,
+  type SmartPlaylist,
+} from "@/react-app/lib/playback-store"
 import { toast } from "sonner"
 
 export function AppSidebar() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const folderInputRef = useRef<HTMLInputElement | null>(null)
   const queryClient = useQueryClient()
-  const { activePlaylist, setActivePlaylist } = usePlayer()
+  const activePlaylist = usePlaybackStore((state) => state.activePlaylist)
+  const setActivePlaylist = usePlaybackStore((state) => state.setActivePlaylist)
+  const navigate = useNavigate()
   const [folderUploadProgress, setFolderUploadProgress] = useState<{
     total: number
     completed: number
@@ -78,10 +84,15 @@ export function AppSidebar() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["playlists"] })
       if (data && typeof data === "object" && "id" in data && "name" in data) {
-        setActivePlaylist({
+        const playlist = {
           type: "custom",
           id: Number(data.id),
           name: String(data.name),
+        } as const
+        setActivePlaylist(playlist)
+        void navigate({
+          to: "/playlists/$playlistId",
+          params: { playlistId: String(playlist.id) },
         })
       }
     },
@@ -220,81 +231,101 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  type="button"
+                  asChild
                   isActive={
                     activePlaylist.type === "smart" &&
                     activePlaylist.id === "all"
                   }
-                  onClick={() =>
-                    selectSmartPlaylist({
-                      type: "smart",
-                      id: "all",
-                      name: "All Songs",
-                      sort: "recent",
-                    })
-                  }
                 >
-                  <span>All Songs</span>
+                  <Link
+                    to="/playlists/$playlistId"
+                    params={{ playlistId: "all" }}
+                    onClick={() =>
+                      selectSmartPlaylist({
+                        type: "smart",
+                        id: "all",
+                        name: "All Songs",
+                        sort: "recent",
+                      })
+                    }
+                  >
+                    <span>All Songs</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  type="button"
+                  asChild
                   isActive={
                     activePlaylist.type === "smart" &&
                     activePlaylist.id === "popular-30"
                   }
-                  onClick={() =>
-                    selectSmartPlaylist({
-                      type: "smart",
-                      id: "popular-30",
-                      name: "Most Popular 30 days",
-                      sort: "popular",
-                      days: 30,
-                    })
-                  }
                 >
-                  <span>Most Popular 30 days</span>
+                  <Link
+                    to="/playlists/$playlistId"
+                    params={{ playlistId: "popular-30" }}
+                    onClick={() =>
+                      selectSmartPlaylist({
+                        type: "smart",
+                        id: "popular-30",
+                        name: "Most Popular 30 days",
+                        sort: "popular",
+                        days: 30,
+                      })
+                    }
+                  >
+                    <span>Most Popular 30 days</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  type="button"
+                  asChild
                   isActive={
                     activePlaylist.type === "smart" &&
                     activePlaylist.id === "popular-90"
                   }
-                  onClick={() =>
-                    selectSmartPlaylist({
-                      type: "smart",
-                      id: "popular-90",
-                      name: "Most Popular 90 days",
-                      sort: "popular",
-                      days: 90,
-                    })
-                  }
                 >
-                  <span>Most Popular 90 days</span>
+                  <Link
+                    to="/playlists/$playlistId"
+                    params={{ playlistId: "popular-90" }}
+                    onClick={() =>
+                      selectSmartPlaylist({
+                        type: "smart",
+                        id: "popular-90",
+                        name: "Most Popular 90 days",
+                        sort: "popular",
+                        days: 90,
+                      })
+                    }
+                  >
+                    <span>Most Popular 90 days</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  type="button"
+                  asChild
                   isActive={
                     activePlaylist.type === "smart" &&
                     activePlaylist.id === "popular-365"
                   }
-                  onClick={() =>
-                    selectSmartPlaylist({
-                      type: "smart",
-                      id: "popular-365",
-                      name: "Most Popular 365 days",
-                      sort: "popular",
-                      days: 365,
-                    })
-                  }
                 >
-                  <span>Most Popular 365 days</span>
+                  <Link
+                    to="/playlists/$playlistId"
+                    params={{ playlistId: "popular-365" }}
+                    onClick={() =>
+                      selectSmartPlaylist({
+                        type: "smart",
+                        id: "popular-365",
+                        name: "Most Popular 365 days",
+                        sort: "popular",
+                        days: 365,
+                      })
+                    }
+                  >
+                    <span>Most Popular 365 days</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -327,20 +358,25 @@ export function AppSidebar() {
                 playlists.map((playlist) => (
                   <SidebarMenuItem key={playlist.id}>
                     <SidebarMenuButton
-                      type="button"
+                      asChild
                       isActive={
                         activePlaylist.type === "custom" &&
                         activePlaylist.id === Number(playlist.id)
                       }
-                      onClick={() =>
-                        setActivePlaylist({
-                          type: "custom",
-                          id: Number(playlist.id),
-                          name: playlist.name,
-                        })
-                      }
                     >
-                      <span>{playlist.name}</span>
+                      <Link
+                        to="/playlists/$playlistId"
+                        params={{ playlistId: String(playlist.id) }}
+                        onClick={() =>
+                          setActivePlaylist({
+                            type: "custom",
+                            id: Number(playlist.id),
+                            name: playlist.name,
+                          })
+                        }
+                      >
+                        <span>{playlist.name}</span>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))
