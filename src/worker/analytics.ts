@@ -2,6 +2,7 @@ import { Hono, type Env } from 'hono'
 import { zValidator, type Hook } from '@hono/zod-validator'
 import { z } from 'zod'
 import type { Bindings } from './bindings'
+import type { ListeningStatsRow } from './db-types'
 
 const zodError = ((result, c) => {
   if (!result.success) {
@@ -106,7 +107,7 @@ const analytics = new Hono<{ Bindings: Bindings }>()
           MAX(started_at) as last_listen
         FROM listening_events 
         WHERE track_id = ?
-      `).bind(track_id).first()
+      `).bind(track_id).first<ListeningStatsRow>()
 
       return c.json(result)
     } catch (error) {

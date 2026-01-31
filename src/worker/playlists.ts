@@ -2,6 +2,12 @@ import { Hono, type Env } from 'hono'
 import { zValidator, type Hook } from '@hono/zod-validator'
 import { z } from 'zod'
 import type { Bindings } from './bindings'
+import type {
+  IdRow,
+  PlaylistBaseRow,
+  PlaylistRow,
+  PlaylistTrackRow,
+} from './db-types'
 
 const zodError = ((result, c) => {
   if (!result.success) {
@@ -16,14 +22,6 @@ const zodError = ((result, c) => {
   { error: string },
   z.ZodType
 >
-
-interface Playlist {
-  id: number
-  name: string
-  created_at: string
-  updated_at: string
-  last_played?: string | null
-}
 
 const playlistIdParamSchema = z.object({
   id: z.coerce.number().int().positive()
@@ -51,10 +49,10 @@ const playlistTrackBodySchema = z.object({
 const playlists = new Hono<{ Bindings: Bindings }>()
   .get('/', async (c) => {
     try {
-      const { results } = (await c.env.MUSIC_DB.prepare(`
+      const { results } = await c.env.MUSIC_DB.prepare(`
         SELECT id, name, created_at, updated_at, last_played FROM playlists 
         ORDER BY COALESCE(last_played, updated_at) DESC
-      `).all()) as { results: Playlist[] }
+      `).all<PlaylistRow>()
 
       return c.json({ playlists: results })
     } catch (error) {
@@ -132,9 +130,9 @@ const playlists = new Hono<{ Bindings: Bindings }>()
 
     try {
       // Get playlist info
-      const playlist = (await c.env.MUSIC_DB.prepare(`
+      const playlist = await c.env.MUSIC_DB.prepare(`
         SELECT id, name, created_at, updated_at FROM playlists WHERE id = ?
-      `).bind(playlistId).first()) as Playlist | null
+      `).bind(playlistId).first<PlaylistBaseRow>()
 
       if (!playlist) {
         return c.json({ error: 'Playlist not found' }, 404)
@@ -147,7 +145,7 @@ const playlists = new Hono<{ Bindings: Bindings }>()
         JOIN playlist_tracks pt ON t.id = pt.track_id
         WHERE pt.playlist_id = ?
         ORDER BY pt.added_at ASC
-      `).bind(playlistId).all()
+      `).bind(playlistId).all<PlaylistTrackRow>()
 
       return c.json({ playlist, tracks })
     } catch (error) {
@@ -167,7 +165,7 @@ const playlists = new Hono<{ Bindings: Bindings }>()
         // Check if playlist exists
         const playlist = await c.env.MUSIC_DB.prepare(`
           SELECT id FROM playlists WHERE id = ?
-        `).bind(playlistId).first()
+        `).bind(playlistId).first<IdRow>()
 
         if (!playlist) {
           return c.json({ error: 'Playlist not found' }, 404)
@@ -176,7 +174,7 @@ const playlists = new Hono<{ Bindings: Bindings }>()
         // Check if track exists
         const track = await c.env.MUSIC_DB.prepare(`
           SELECT id FROM tracks WHERE id = ?
-        `).bind(trackId).first()
+        `).bind(trackId).first<IdRow>()
 
         if (!track) {
           return c.json({ error: 'Track not found' }, 404)

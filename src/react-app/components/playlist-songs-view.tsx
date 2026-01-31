@@ -328,13 +328,9 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
   const hasSearch = normalizedSearch.length > 0
   const shouldOrderByListening =
     activePlaylist.type === "smart" && activePlaylist.sort === "popular"
-  const shouldSortByTime = tableSort?.key === "time"
-  const listeningDeltasForOrder = shouldOrderByListening
-    ? listeningDeltas
-    : EMPTY_LISTENING_DELTAS
-  const listeningDeltasForSort = shouldSortByTime
-    ? listeningDeltas
-    : EMPTY_LISTENING_DELTAS
+  // Keep table order stable while listening time ticks up client-side.
+  const listeningDeltasForOrder = EMPTY_LISTENING_DELTAS
+  const listeningDeltasForSort = EMPTY_LISTENING_DELTAS
 
   const activeOrderedSongs = useMemo(() => {
     if (shouldOrderByListening) {

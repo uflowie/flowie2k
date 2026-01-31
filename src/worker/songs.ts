@@ -4,6 +4,13 @@ import { parseBuffer, type IAudioMetadata } from 'music-metadata'
 import { z } from 'zod'
 import { Buffer } from 'node:buffer'
 import type { Bindings } from './bindings'
+import type {
+  IdRow,
+  TrackDeleteRow,
+  TrackListRow,
+  TrackStorageRow,
+  TrackThumbnailRow,
+} from './db-types'
 
 const zodError = ((result, c) => {
   if (!result.success) {
@@ -18,24 +25,6 @@ const zodError = ((result, c) => {
   { error: string },
   z.ZodType
 >
-
-interface Track {
-  id: number
-  filename: string
-  storage_key?: string
-  title?: string
-  artist?: string
-  album?: string
-  genre?: string
-  duration?: number
-  file_size: number
-  mime_type: string
-  uploaded_at: string
-  thumbnail_path?: string
-  seconds_listened: number
-  last_played?: string
-  window_seconds?: number
-}
 
 const uploadParamSchema = z.object({
   filename: z.string().min(1, { message: 'Filename is required' })
@@ -123,9 +112,9 @@ const songs = new Hono<{ Bindings: Bindings }>()
         thumbnailPath
       ).run()
 
-      const track = (await c.env.MUSIC_DB.prepare(`
+      const track = await c.env.MUSIC_DB.prepare(`
         SELECT id FROM tracks WHERE storage_key = ?
-      `).bind(storageKey).first()) as { id: number } | null
+      `).bind(storageKey).first<IdRow>()
 
       return c.json({
         message: `File ${filename} uploaded successfully`,
@@ -148,7 +137,7 @@ const songs = new Hono<{ Bindings: Bindings }>()
       const { sort, days } = c.req.valid('query')
 
       if (sort === 'popular' && days !== undefined) {
-        const { results } = (await c.env.MUSIC_DB.prepare(`
+        const { results } = await c.env.MUSIC_DB.prepare(`
         SELECT 
           t.id, t.filename, t.title, t.artist, t.album, t.genre, t.duration, 
           t.file_size, t.mime_type, t.uploaded_at, t.thumbnail_path,
@@ -163,7 +152,7 @@ const songs = new Hono<{ Bindings: Bindings }>()
                  t.seconds_listened, t.last_played
         HAVING window_seconds > 0
         ORDER BY window_seconds DESC, t.uploaded_at DESC
-      `).bind(`-${days} day`).all()) as { results: Track[] }
+      `).bind(`-${days} day`).all<TrackListRow>()
 
         return c.json({ songs: results })
       }
@@ -173,7 +162,7 @@ const songs = new Hono<{ Bindings: Bindings }>()
           ? 't.seconds_listened DESC, t.uploaded_at DESC'
           : 't.uploaded_at DESC'
 
-      const { results } = (await c.env.MUSIC_DB.prepare(`
+      const { results } = await c.env.MUSIC_DB.prepare(`
       SELECT 
         t.id, t.filename, t.title, t.artist, t.album, t.genre, t.duration, 
         t.file_size, t.mime_type, t.uploaded_at, t.thumbnail_path,
@@ -181,7 +170,7 @@ const songs = new Hono<{ Bindings: Bindings }>()
         0 as window_seconds
       FROM tracks t
       ORDER BY ${orderBy}
-    `).all()) as { results: Track[] }
+    `).all<TrackListRow>()
 
       return c.json({ songs: results })
     } catch (error) {
@@ -194,9 +183,9 @@ const songs = new Hono<{ Bindings: Bindings }>()
 
     try {
       // Get filename from database
-      const track = (await c.env.MUSIC_DB.prepare(`
+      const track = await c.env.MUSIC_DB.prepare(`
       SELECT filename, storage_key FROM tracks WHERE id = ?
-    `).bind(id).first()) as { filename: string; storage_key: string } | null
+    `).bind(id).first<TrackStorageRow>()
 
       if (!track) {
         return c.json({ error: 'Song not found' }, 404)
@@ -249,9 +238,9 @@ const songs = new Hono<{ Bindings: Bindings }>()
 
     try {
       // Get thumbnail path from database
-      const track = (await c.env.MUSIC_DB.prepare(`
+      const track = await c.env.MUSIC_DB.prepare(`
       SELECT thumbnail_path FROM tracks WHERE id = ?
-    `).bind(id).first()) as { thumbnail_path: string | null } | null
+    `).bind(id).first<TrackThumbnailRow>()
 
       if (!track || !track.thumbnail_path) {
         return c.json({ error: 'Thumbnail not found' }, 404)
@@ -284,13 +273,9 @@ const songs = new Hono<{ Bindings: Bindings }>()
     try {
       // Get track info from database
       console.log(`[DELETE] Fetching track info for ID: ${id}`)
-      const track = (await c.env.MUSIC_DB.prepare(`
+      const track = await c.env.MUSIC_DB.prepare(`
       SELECT filename, storage_key, thumbnail_path FROM tracks WHERE id = ?
-    `).bind(id).first()) as {
-        filename: string
-        storage_key: string
-        thumbnail_path: string | null
-      } | null
+    `).bind(id).first<TrackDeleteRow>()
 
       if (!track) {
         console.log(`[DELETE] Song not found for ID: ${id}`)
