@@ -194,6 +194,28 @@ export function PlaybackControls() {
       return
     }
 
+    const handlePlay = () => {
+      setIsPlaying(true)
+    }
+    const handlePause = () => {
+      setIsPlaying(false)
+    }
+
+    audio.addEventListener("play", handlePlay)
+    audio.addEventListener("pause", handlePause)
+
+    return () => {
+      audio.removeEventListener("play", handlePlay)
+      audio.removeEventListener("pause", handlePause)
+    }
+  }, [setIsPlaying])
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) {
+      return
+    }
+
     audio.volume = clamp(volume, 0, 1)
   }, [volume])
 
