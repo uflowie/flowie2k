@@ -7,6 +7,7 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 
 // Import the generated route tree
 import { routeTree } from './routeTree.gen'
+import { startListenTracker } from "@/react-app/lib/listen-tracker"
 
 // Create a new router instance
 const router = createRouter({ routeTree })
@@ -22,6 +23,7 @@ declare module '@tanstack/react-router' {
 // Render the app
 const rootElement = document.getElementById('root')!
 if (!rootElement.innerHTML) {
+  startListenTracker()
   const root = ReactDOM.createRoot(rootElement)
   root.render(
     <StrictMode>

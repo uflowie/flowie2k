@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   ArrowDown,
   ArrowUp,
@@ -22,6 +22,7 @@ import {
   flexRender,
   getCoreRowModel,
   type ColumnDef,
+  type Row,
   useReactTable,
 } from "@tanstack/react-table"
 import { useVirtualizer } from "@tanstack/react-virtual"
@@ -35,7 +36,6 @@ import {
   type ActivePlaylist,
 } from "@/react-app/lib/playback-store"
 import { fetchSongsForPlaylist } from "@/react-app/lib/songs"
-import { useListenTracker } from "@/react-app/hooks/use-listen-tracker"
 import type {
   PlaylistSong,
 } from "@/react-app/lib/types"
@@ -72,6 +72,12 @@ const formatListeningTime = (seconds?: number | null) => {
   return `${remaining}s`
 }
 
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  year: "numeric",
+  month: "short",
+  day: "2-digit",
+})
+
 const formatDate = (value?: string | null) => {
   if (!value) {
     return "--"
@@ -82,18 +88,13 @@ const formatDate = (value?: string | null) => {
     return "--"
   }
 
-  return new Intl.DateTimeFormat("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-  }).format(date)
+  return dateFormatter.format(date)
 }
 
 const getSongTitle = (song: PlaylistSong) => {
   const title = song.title?.trim()
   return title ? title : song.filename
 }
-const EMPTY_LISTENING_DELTAS: Record<number, number> = {}
 
 type SortKey =
   | "title"
@@ -130,32 +131,20 @@ const getListeningSecondsForPlaylist = (
     : null
 }
 
-const getDisplayListeningSeconds = (
-  song: PlaylistSong,
-  playlist: ActivePlaylist,
-  listeningDeltas: Record<number, number>,
-) => {
-  const base = getListeningSecondsForPlaylist(song, playlist) ?? 0
-  const delta = listeningDeltas[song.id] ?? 0
-  return base + delta
-}
-
 const orderSongsByListening = (
   items: PlaylistSong[],
   playlist: ActivePlaylist,
-  listeningDeltas: Record<number, number>,
 ) =>
   [...items].sort(
     (first, second) =>
-      getDisplayListeningSeconds(second, playlist, listeningDeltas) -
-      getDisplayListeningSeconds(first, playlist, listeningDeltas),
+      (getListeningSecondsForPlaylist(second, playlist) ?? 0) -
+      (getListeningSecondsForPlaylist(first, playlist) ?? 0),
   )
 
 const applyTableSort = (
   items: PlaylistSong[],
   sort: TableSort,
   playlist: ActivePlaylist,
-  listeningDeltas: Record<number, number>,
 ) => {
   const toDateValue = (value?: string | null) => {
     if (!value) {
@@ -176,7 +165,7 @@ const applyTableSort = (
       case "duration":
         return song.duration ?? null
       case "time":
-        return getDisplayListeningSeconds(song, playlist, listeningDeltas)
+        return getListeningSecondsForPlaylist(song, playlist)
       case "lastPlayed":
         return "last_played" in song
           ? toDateValue(song.last_played as string | null)
@@ -224,9 +213,39 @@ type PlaylistSongsViewProps = {
   playlist: ActivePlaylist
 }
 
+type SongRowProps = {
+  row: Row<PlaylistSong>
+  onSelect: (song: PlaylistSong) => void
+}
+
+function SongRow({ row, onSelect }: SongRowProps) {
+  const isSelected = usePlaybackStore(
+    useCallback(
+      (state) => state.currentSongId === row.original.id,
+      [row.original.id],
+    ),
+  )
+
+  return (
+    <TableRow
+      data-state={isSelected ? "selected" : undefined}
+      className="h-8 cursor-pointer select-none focus-visible:outline-none"
+      onClick={() => onSelect(row.original)}
+    >
+      {row.getVisibleCells().map((cell) => {
+        const meta = cell.column.columnDef.meta as SongsColumnMeta | undefined
+        return (
+          <TableCell key={cell.id} className={meta?.cellClassName}>
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </TableCell>
+        )
+      })}
+    </TableRow>
+  )
+}
+
 export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
   const queryClient = useQueryClient()
-  const currentSongId = usePlaybackStore((state) => state.currentSongId)
   const startPlayback = usePlaybackStore((state) => state.startPlayback)
   const restartCurrentSong = usePlaybackStore(
     (state) => state.restartCurrentSong,
@@ -241,10 +260,6 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
   const closeMenu = useCallback(() => {
     setOpenMenuSongId(null)
   }, [])
-  const [listeningState, setListeningState] = useState(() => ({
-    playlistKey,
-    deltas: {} as Record<number, number>,
-  }))
   const [tableSortState, setTableSortState] = useState<
     (TableSort & { playlistKey: string }) | null
   >(null)
@@ -252,37 +267,9 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
   const setTableContainerRef = useCallback((element: HTMLDivElement | null) => {
     setScrollElement(element)
   }, [])
-  const listeningDeltas = useMemo(
-    () =>
-      listeningState.playlistKey === playlistKey
-        ? listeningState.deltas
-        : {},
-    [listeningState, playlistKey],
-  )
-  const listeningDeltasRef = useRef(listeningDeltas)
   const tableSort =
     tableSortState?.playlistKey === playlistKey ? tableSortState : null
-  const handleListenDelta = useCallback(
-    (trackId: number) => {
-      setListeningState((previous) => {
-        if (previous.playlistKey !== playlistKey) {
-          return {
-            playlistKey,
-            deltas: { [trackId]: 1 },
-          }
-        }
-        return {
-          playlistKey,
-          deltas: {
-            ...previous.deltas,
-            [trackId]: (previous.deltas[trackId] ?? 0) + 1,
-          },
-        }
-      })
-    },
-    [playlistKey],
-  )
-  useListenTracker({ onListenDelta: handleListenDelta })
+
 
   const {
     data: songs = [],
@@ -329,23 +316,12 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
   const shouldOrderByListening =
     activePlaylist.type === "smart" && activePlaylist.sort === "popular"
   // Keep table order stable while listening time ticks up client-side.
-  const listeningDeltasForOrder = EMPTY_LISTENING_DELTAS
-  const listeningDeltasForSort = EMPTY_LISTENING_DELTAS
-
   const activeOrderedSongs = useMemo(() => {
     if (shouldOrderByListening) {
-      return orderSongsByListening(
-        songs,
-        activePlaylist,
-        listeningDeltasForOrder,
-      )
+      return orderSongsByListening(songs, activePlaylist)
     }
     return songs
-  }, [songs, activePlaylist, shouldOrderByListening, listeningDeltasForOrder])
-
-  useEffect(() => {
-    listeningDeltasRef.current = listeningDeltas
-  }, [listeningDeltas])
+  }, [songs, activePlaylist, shouldOrderByListening])
 
   const handleSort = (key: SortKey) => {
     if (!isSortablePlaylist) {
@@ -384,14 +360,12 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
       activeOrderedSongs,
       tableSort,
       activePlaylist,
-      listeningDeltasForSort,
     )
   }, [
     activeOrderedSongs,
     isSortablePlaylist,
     tableSort,
     activePlaylist,
-    listeningDeltasForSort,
   ])
 
   const visibleSongs = useMemo(() => {
@@ -467,11 +441,7 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
         } satisfies SongsColumnMeta,
         cell: ({ row }) =>
           formatListeningTime(
-            getDisplayListeningSeconds(
-              row.original,
-              activePlaylist,
-              listeningDeltasRef.current,
-            ),
+            getListeningSecondsForPlaylist(row.original, activePlaylist),
           ),
       },
       {
@@ -610,7 +580,7 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
   const paddingBottom =
     virtualRows.length > 0
       ? rowVirtualizer.getTotalSize() -
-        virtualRows[virtualRows.length - 1].end
+      virtualRows[virtualRows.length - 1].end
       : 0
   const activeSortedIds = useMemo(
     () => activeSortedSongs.map((song) => song.id),
@@ -623,6 +593,7 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
 
   const handleSelectSong = useCallback(
     (song: PlaylistSong) => {
+      const { currentSongId } = usePlaybackStore.getState()
       if (currentSongId === song.id) {
         restartCurrentSong()
         return
@@ -634,13 +605,7 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
         songId: song.id,
       })
     },
-    [
-      activePlaylist,
-      activeSortedIds,
-      currentSongId,
-      restartCurrentSong,
-      startPlayback,
-    ],
+    [activePlaylist, activeSortedIds, restartCurrentSong, startPlayback],
   )
 
   return (
@@ -780,33 +745,11 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
                       return null
                     }
                     return (
-                      <TableRow
+                      <SongRow
                         key={row.id}
-                        data-state={
-                          currentSongId === row.original.id
-                            ? "selected"
-                            : undefined
-                        }
-                        className="h-8 cursor-pointer select-none focus-visible:outline-none"
-                        onClick={() => handleSelectSong(row.original)}
-                      >
-                        {row.getVisibleCells().map((cell) => {
-                          const meta = cell.column.columnDef.meta as
-                            | SongsColumnMeta
-                            | undefined
-                          return (
-                            <TableCell
-                              key={cell.id}
-                              className={meta?.cellClassName}
-                            >
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext(),
-                              )}
-                            </TableCell>
-                          )
-                        })}
-                      </TableRow>
+                        row={row}
+                        onSelect={handleSelectSong}
+                      />
                     )
                   })}
                   {paddingBottom > 0 ? (

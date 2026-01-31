@@ -79,6 +79,7 @@ export function AppSidebar() {
   const playlists = (playlistsResponse as {
     playlists?: { id: number; name: string }[]
   })?.playlists ?? []
+
   const createPlaylistMutation = useMutation({
     mutationFn: createPlaylist,
     onSuccess: (data) => {
@@ -215,7 +216,6 @@ export function AppSidebar() {
               multiple
               // @ts-expect-error - nonstandard attribute for directory selection
               webkitdirectory=""
-              // @ts-expect-error - Firefox folder picker support
               mozdirectory=""
               onChange={(event) => {
                 const files = Array.from(event.target.files ?? [])
