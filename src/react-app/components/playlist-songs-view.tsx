@@ -26,10 +26,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table"
 import { useVirtualizer } from "@tanstack/react-virtual"
-import {
-  addTrackToPlaylist,
-  fetchPlaylists,
-} from "@/react-app/lib/api"
+import { addTrackToPlaylist } from "@/react-app/lib/api"
 import {
   getPlaylistKey,
   usePlaybackStore,
@@ -131,16 +128,6 @@ const getListeningSecondsForPlaylist = (
     : null
 }
 
-const orderSongsByListening = (
-  items: PlaylistSong[],
-  playlist: ActivePlaylist,
-) =>
-  [...items].sort(
-    (first, second) =>
-      (getListeningSecondsForPlaylist(second, playlist) ?? 0) -
-      (getListeningSecondsForPlaylist(first, playlist) ?? 0),
-  )
-
 const applyTableSort = (
   items: PlaylistSong[],
   sort: TableSort,
@@ -211,6 +198,9 @@ const applyTableSort = (
 
 type PlaylistSongsViewProps = {
   playlist: ActivePlaylist
+  playlists: { id: number; name: string }[]
+  playlistsLoading: boolean
+  playlistsError: boolean
 }
 
 type SongRowProps = {
@@ -244,7 +234,98 @@ function SongRow({ row, onSelect }: SongRowProps) {
   )
 }
 
-export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
+type SongActionsMenuProps = {
+  trackId: number
+  playlists: { id: number; name: string }[]
+  playlistsLoading: boolean
+  playlistsError: boolean
+  onAddToPlaylist: (playlistId: number, trackId: number) => void
+}
+
+function SongActionsMenu({
+  trackId,
+  playlists,
+  playlistsLoading,
+  playlistsError,
+  onAddToPlaylist,
+}: SongActionsMenuProps) {
+  const [open, setOpen] = useState(false)
+  const handleAdd = useCallback(
+    (playlistId: number) => {
+      onAddToPlaylist(playlistId, trackId)
+      setOpen(false)
+    },
+    [onAddToPlaylist, trackId],
+  )
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div onClick={(event) => event.stopPropagation()}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-haspopup="menu"
+            aria-expanded={open}
+            aria-label="Song actions"
+          >
+            <MoreVertical />
+          </Button>
+        </div>
+      </PopoverTrigger>
+      {open ? (
+        <PopoverContent
+          align="end"
+          sideOffset={8}
+          className="min-w-[11rem] p-1"
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <div className="flex flex-col">
+            {playlistsLoading ? (
+              <div className="text-muted-foreground px-2 py-1.5 text-xs">
+                Loading playlists...
+              </div>
+            ) : playlistsError ? (
+              <div className="text-muted-foreground px-2 py-1.5 text-xs">
+                Failed to load playlists
+              </div>
+            ) : playlists.length === 0 ? (
+              <div className="text-muted-foreground px-2 py-1.5 text-xs">
+                No playlists yet
+              </div>
+            ) : (
+              playlists.map((playlist) => (
+                <Button
+                  key={playlist.id}
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  role="menuitem"
+                  className="w-full justify-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handleAdd(playlist.id)
+                  }}
+                >
+                  Add to {playlist.name}
+                </Button>
+              ))
+            )}
+          </div>
+        </PopoverContent>
+      ) : null}
+    </Popover>
+  )
+}
+
+export function PlaylistSongsView({
+  playlist,
+  playlists,
+  playlistsLoading,
+  playlistsError,
+}: PlaylistSongsViewProps) {
   const queryClient = useQueryClient()
   const startPlayback = usePlaybackStore((state) => state.startPlayback)
   const restartCurrentSong = usePlaybackStore(
@@ -255,11 +336,7 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
   )
   const activePlaylist = playlist
   const playlistKey = getPlaylistKey(activePlaylist)
-  const [openMenuSongId, setOpenMenuSongId] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
-  const closeMenu = useCallback(() => {
-    setOpenMenuSongId(null)
-  }, [])
   const [tableSortState, setTableSortState] = useState<
     (TableSort & { playlistKey: string }) | null
   >(null)
@@ -280,20 +357,9 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
   } = useQuery({
     queryKey: ["songs", playlistKey],
     queryFn: () => fetchSongsForPlaylist(activePlaylist),
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
   })
-  const {
-    data: playlistsResponse,
-    isLoading: playlistsLoading,
-    isError: playlistsError,
-  } = useQuery({
-    queryKey: ["playlists"],
-    queryFn: fetchPlaylists,
-  })
-  const playlists = useMemo(() => {
-    return (playlistsResponse as {
-      playlists?: { id: number; name: string }[]
-    })?.playlists ?? []
-  }, [playlistsResponse])
   const addToPlaylistMutation = useMutation({
     mutationFn: ({
       playlistId,
@@ -313,15 +379,12 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
     (activePlaylist.type === "smart" && activePlaylist.id === "all")
   const normalizedSearch = searchQuery.trim().toLowerCase()
   const hasSearch = normalizedSearch.length > 0
-  const shouldOrderByListening =
-    activePlaylist.type === "smart" && activePlaylist.sort === "popular"
-  // Keep table order stable while listening time ticks up client-side.
-  const activeOrderedSongs = useMemo(() => {
-    if (shouldOrderByListening) {
-      return orderSongsByListening(songs, activePlaylist)
-    }
-    return songs
-  }, [songs, activePlaylist, shouldOrderByListening])
+  const handleAddToPlaylist = useCallback(
+    (playlistId: number, trackId: number) => {
+      addToPlaylistMutation.mutate({ playlistId, trackId })
+    },
+    [addToPlaylistMutation],
+  )
 
   const handleSort = (key: SortKey) => {
     if (!isSortablePlaylist) {
@@ -354,15 +417,15 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
 
   const activeSortedSongs = useMemo(() => {
     if (!isSortablePlaylist || !tableSort) {
-      return activeOrderedSongs
+      return songs
     }
     return applyTableSort(
-      activeOrderedSongs,
+      songs,
       tableSort,
       activePlaylist,
     )
   }, [
-    activeOrderedSongs,
+    songs,
     isSortablePlaylist,
     tableSort,
     activePlaylist,
@@ -474,84 +537,26 @@ export function PlaylistSongsView({ playlist }: PlaylistSongsViewProps) {
           headerClassName: "w-12 text-right",
           cellClassName: "text-right",
         } satisfies SongsColumnMeta,
-        cell: ({ row }) => (
-          <Popover
-            open={openMenuSongId === row.original.id}
-            onOpenChange={(open) =>
-              setOpenMenuSongId(open ? row.original.id : null)
-            }
-          >
-            <PopoverTrigger asChild>
-              <div onClick={(event) => event.stopPropagation()}>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-haspopup="menu"
-                  aria-expanded={openMenuSongId === row.original.id}
-                  aria-label="Song actions"
-                >
-                  <MoreVertical />
-                </Button>
-              </div>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              sideOffset={8}
-              className="min-w-[11rem] p-1"
-              onClick={(event) => event.stopPropagation()}
-              onPointerDown={(event) => event.stopPropagation()}
-            >
-              <div className="flex flex-col">
-                {playlistsLoading ? (
-                  <div className="text-muted-foreground px-2 py-1.5 text-xs">
-                    Loading playlists...
-                  </div>
-                ) : playlistsError ? (
-                  <div className="text-muted-foreground px-2 py-1.5 text-xs">
-                    Failed to load playlists
-                  </div>
-                ) : playlists.length === 0 ? (
-                  <div className="text-muted-foreground px-2 py-1.5 text-xs">
-                    No playlists yet
-                  </div>
-                ) : (
-                  playlists.map((playlist) => (
-                    <Button
-                      key={playlist.id}
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      role="menuitem"
-                      className="w-full justify-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        addToPlaylistMutation.mutate({
-                          playlistId: playlist.id,
-                          trackId: row.original.id,
-                        })
-                        closeMenu()
-                      }}
-                    >
-                      Add to {playlist.name}
-                    </Button>
-                  ))
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
-        ),
+        cell: ({ row }) => {
+          return (
+            <SongActionsMenu
+              trackId={row.original.id}
+              playlists={playlists}
+              playlistsLoading={playlistsLoading}
+              playlistsError={playlistsError}
+              onAddToPlaylist={handleAddToPlaylist}
+            />
+          )
+        },
       },
     ]
   }, [
     activePlaylist,
     timeListenedLabel,
-    openMenuSongId,
     playlistsLoading,
     playlistsError,
     playlists,
-    addToPlaylistMutation,
-    closeMenu,
+    handleAddToPlaylist,
   ])
 
   // eslint-disable-next-line react-hooks/incompatible-library

@@ -14,11 +14,45 @@ import { useRef, useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { Input } from "@/components/ui/input"
 import { createPlaylist, fetchPlaylists, uploadSong } from "@/react-app/lib/api"
+import { fetchSongsForPlaylist } from "@/react-app/lib/songs"
 import {
+  getPlaylistKey,
   usePlaybackStore,
+  type ActivePlaylist,
   type SmartPlaylist,
 } from "@/react-app/lib/playback-store"
 import { toast } from "sonner"
+
+const SMART_ALL: SmartPlaylist = {
+  type: "smart",
+  id: "all",
+  name: "All Songs",
+  sort: "recent",
+}
+
+const SMART_POPULAR_30: SmartPlaylist = {
+  type: "smart",
+  id: "popular-30",
+  name: "Most Popular 30 days",
+  sort: "popular",
+  days: 30,
+}
+
+const SMART_POPULAR_90: SmartPlaylist = {
+  type: "smart",
+  id: "popular-90",
+  name: "Most Popular 90 days",
+  sort: "popular",
+  days: 90,
+}
+
+const SMART_POPULAR_365: SmartPlaylist = {
+  type: "smart",
+  id: "popular-365",
+  name: "Most Popular 365 days",
+  sort: "popular",
+  days: 365,
+}
 
 export function AppSidebar() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -75,6 +109,8 @@ export function AppSidebar() {
   } = useQuery({
     queryKey: ["playlists"],
     queryFn: fetchPlaylists,
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
   })
   const playlists = (playlistsResponse as {
     playlists?: { id: number; name: string }[]
@@ -98,6 +134,16 @@ export function AppSidebar() {
       }
     },
   })
+
+  const prefetchPlaylist = (playlist: ActivePlaylist) => {
+    const playlistKey = getPlaylistKey(playlist)
+    void queryClient.prefetchQuery({
+      queryKey: ["songs", playlistKey],
+      queryFn: () => fetchSongsForPlaylist(playlist),
+      staleTime: 30_000,
+      gcTime: 5 * 60_000,
+    })
+  }
 
   const selectSmartPlaylist = (playlist: SmartPlaylist) => {
     setActivePlaylist(playlist)
@@ -241,13 +287,10 @@ export function AppSidebar() {
                     to="/playlists/$playlistId"
                     params={{ playlistId: "all" }}
                     onClick={() =>
-                      selectSmartPlaylist({
-                        type: "smart",
-                        id: "all",
-                        name: "All Songs",
-                        sort: "recent",
-                      })
+                      selectSmartPlaylist(SMART_ALL)
                     }
+                    onMouseEnter={() => prefetchPlaylist(SMART_ALL)}
+                    onFocus={() => prefetchPlaylist(SMART_ALL)}
                   >
                     <span>All Songs</span>
                   </Link>
@@ -265,14 +308,10 @@ export function AppSidebar() {
                     to="/playlists/$playlistId"
                     params={{ playlistId: "popular-30" }}
                     onClick={() =>
-                      selectSmartPlaylist({
-                        type: "smart",
-                        id: "popular-30",
-                        name: "Most Popular 30 days",
-                        sort: "popular",
-                        days: 30,
-                      })
+                      selectSmartPlaylist(SMART_POPULAR_30)
                     }
+                    onMouseEnter={() => prefetchPlaylist(SMART_POPULAR_30)}
+                    onFocus={() => prefetchPlaylist(SMART_POPULAR_30)}
                   >
                     <span>Most Popular 30 days</span>
                   </Link>
@@ -290,14 +329,10 @@ export function AppSidebar() {
                     to="/playlists/$playlistId"
                     params={{ playlistId: "popular-90" }}
                     onClick={() =>
-                      selectSmartPlaylist({
-                        type: "smart",
-                        id: "popular-90",
-                        name: "Most Popular 90 days",
-                        sort: "popular",
-                        days: 90,
-                      })
+                      selectSmartPlaylist(SMART_POPULAR_90)
                     }
+                    onMouseEnter={() => prefetchPlaylist(SMART_POPULAR_90)}
+                    onFocus={() => prefetchPlaylist(SMART_POPULAR_90)}
                   >
                     <span>Most Popular 90 days</span>
                   </Link>
@@ -315,14 +350,10 @@ export function AppSidebar() {
                     to="/playlists/$playlistId"
                     params={{ playlistId: "popular-365" }}
                     onClick={() =>
-                      selectSmartPlaylist({
-                        type: "smart",
-                        id: "popular-365",
-                        name: "Most Popular 365 days",
-                        sort: "popular",
-                        days: 365,
-                      })
+                      selectSmartPlaylist(SMART_POPULAR_365)
                     }
+                    onMouseEnter={() => prefetchPlaylist(SMART_POPULAR_365)}
+                    onFocus={() => prefetchPlaylist(SMART_POPULAR_365)}
                   >
                     <span>Most Popular 365 days</span>
                   </Link>
@@ -355,31 +386,34 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ) : (
-                playlists.map((playlist) => (
-                  <SidebarMenuItem key={playlist.id}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={
-                        activePlaylist.type === "custom" &&
-                        activePlaylist.id === Number(playlist.id)
-                      }
-                    >
-                      <Link
-                        to="/playlists/$playlistId"
-                        params={{ playlistId: String(playlist.id) }}
-                        onClick={() =>
-                          setActivePlaylist({
-                            type: "custom",
-                            id: Number(playlist.id),
-                            name: playlist.name,
-                          })
+                playlists.map((playlist) => {
+                  const playlistData = {
+                    type: "custom",
+                    id: Number(playlist.id),
+                    name: playlist.name,
+                  } as const
+                  return (
+                    <SidebarMenuItem key={playlist.id}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={
+                          activePlaylist.type === "custom" &&
+                          activePlaylist.id === playlistData.id
                         }
                       >
-                        <span>{playlist.name}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))
+                        <Link
+                          to="/playlists/$playlistId"
+                          params={{ playlistId: String(playlist.id) }}
+                          onClick={() => setActivePlaylist(playlistData)}
+                          onMouseEnter={() => prefetchPlaylist(playlistData)}
+                          onFocus={() => prefetchPlaylist(playlistData)}
+                        >
+                          <span>{playlist.name}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })
               )}
             </SidebarMenu>
           </SidebarGroupContent>

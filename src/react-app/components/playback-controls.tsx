@@ -49,6 +49,30 @@ const getSongTitle = (song: PlaylistSong) => {
   return title ? title : song.filename
 }
 
+const useDebouncedLocalStorage = (
+  key: string,
+  value: string,
+  delayMs = 200,
+) => {
+  const timeoutRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (timeoutRef.current !== null) {
+      window.clearTimeout(timeoutRef.current)
+    }
+
+    timeoutRef.current = window.setTimeout(() => {
+      window.localStorage.setItem(key, value)
+    }, delayMs)
+
+    return () => {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [key, value, delayMs])
+}
+
 export function PlaybackControls() {
   const playbackPlaylist = usePlaybackStore((state) => state.playbackPlaylist)
   const playbackPlaylistKey = getPlaylistKey(playbackPlaylist)
@@ -89,6 +113,8 @@ export function PlaybackControls() {
   const { data: playbackSongs = [] } = useQuery({
     queryKey: ["songs", playbackPlaylistKey],
     queryFn: () => fetchSongsForPlaylist(playbackPlaylist),
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
   })
 
   const currentSong = useMemo(
@@ -126,13 +152,8 @@ export function PlaybackControls() {
   )
   const canPlay = Boolean(currentSongId || activePlaylistSongIds.length)
 
-  useEffect(() => {
-    window.localStorage.setItem("player.volume", String(volume))
-  }, [volume])
-
-  useEffect(() => {
-    window.localStorage.setItem("player.playbackRate", String(playbackRate))
-  }, [playbackRate])
+  useDebouncedLocalStorage("player.volume", String(volume))
+  useDebouncedLocalStorage("player.playbackRate", String(playbackRate))
 
   useEffect(() => {
     const audio = audioRef.current

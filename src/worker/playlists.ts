@@ -140,7 +140,19 @@ const playlists = new Hono<{ Bindings: Bindings }>()
 
       // Get tracks in playlist
       const { results: tracks } = await c.env.MUSIC_DB.prepare(`
-        SELECT t.*, pt.added_at as playlist_added_at
+        SELECT
+          t.id,
+          t.filename,
+          t.title,
+          t.artist,
+          t.album,
+          t.genre,
+          t.duration,
+          t.uploaded_at,
+          t.thumbnail_path,
+          t.seconds_listened,
+          t.last_played,
+          pt.added_at as playlist_added_at
         FROM tracks t
         JOIN playlist_tracks pt ON t.id = pt.track_id
         WHERE pt.playlist_id = ?

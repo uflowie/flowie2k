@@ -23,6 +23,21 @@ export type TrackListRow = Omit<TrackRow, "storage_key"> & {
   window_seconds: number
 }
 
+export type TrackDisplayRow = Pick<
+  TrackRow,
+  | "id"
+  | "filename"
+  | "title"
+  | "artist"
+  | "album"
+  | "genre"
+  | "duration"
+  | "uploaded_at"
+  | "thumbnail_path"
+  | "seconds_listened"
+  | "last_played"
+>
+
 export type TrackStorageRow = Pick<TrackRow, "filename" | "storage_key">
 
 export type TrackThumbnailRow = Pick<TrackRow, "thumbnail_path">
@@ -42,7 +57,7 @@ export type PlaylistRow = {
 
 export type PlaylistBaseRow = Omit<PlaylistRow, "last_played">
 
-export type PlaylistTrackRow = TrackRow & {
+export type PlaylistTrackRow = TrackDisplayRow & {
   playlist_added_at: string
 }
 

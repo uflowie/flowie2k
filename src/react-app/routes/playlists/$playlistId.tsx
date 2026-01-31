@@ -69,9 +69,15 @@ function resolvePlaylist(
 
 function PlaylistRoute() {
   const { playlistId } = Route.useParams()
-  const { data: playlistsResponse } = useQuery({
+  const {
+    data: playlistsResponse,
+    isLoading: playlistsLoading,
+    isError: playlistsError,
+  } = useQuery({
     queryKey: ["playlists"],
     queryFn: fetchPlaylists,
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
   })
   const playlists = useMemo(() => {
     return (playlistsResponse as {
@@ -97,6 +103,12 @@ function PlaylistRoute() {
   }, [activePlaylist, playlistKey, resolvedPlaylist, setActivePlaylist])
 
   return (
-    <PlaylistSongsView key={playlistKey} playlist={resolvedPlaylist} />
+    <PlaylistSongsView
+      key={playlistKey}
+      playlist={resolvedPlaylist}
+      playlists={playlists}
+      playlistsLoading={playlistsLoading}
+      playlistsError={playlistsError}
+    />
   )
 }
