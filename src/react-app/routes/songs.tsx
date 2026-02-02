@@ -5,5 +5,5 @@ export const Route = createFileRoute("/songs")({
 })
 
 function SongsRoute() {
-  return <Navigate to="/playlists/all" />
+  return <Navigate to="/playlists/$playlistId" params={{ playlistId: "all" }} />
 }

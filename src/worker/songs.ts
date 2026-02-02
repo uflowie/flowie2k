@@ -2,7 +2,6 @@ import { Hono, type Env } from 'hono'
 import { zValidator, type Hook } from '@hono/zod-validator'
 import { parseBuffer, type IAudioMetadata } from 'music-metadata'
 import { z } from 'zod'
-import { Buffer } from 'node:buffer'
 import type { Bindings } from './bindings'
 import type {
   IdRow,
@@ -62,7 +61,7 @@ const songs = new Hono<{ Bindings: Bindings }>()
 
       try {
         // Extract metadata from MP3
-        const parsedMetadata = await parseBuffer(Buffer.from(body))
+        const parsedMetadata = await parseBuffer(new Uint8Array(body))
         metadata = parsedMetadata.common
         durationSeconds = parsedMetadata.format.duration ?? null
 

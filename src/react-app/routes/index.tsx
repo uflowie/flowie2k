@@ -5,5 +5,5 @@ export const Route = createFileRoute('/')({
 })
 
 function Index() {
-  return <Navigate to="/playlists/all" />
+  return <Navigate to="/playlists/$playlistId" params={{ playlistId: "all" }} />
 }

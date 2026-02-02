@@ -3,7 +3,6 @@ import type { ActivePlaylist } from "@/react-app/lib/playback-store"
 import type {
   PlaylistSong,
   PlaylistTracksPayload,
-  SongsPayload,
 } from "@/react-app/lib/types"
 
 export const fetchSongsForPlaylist = async (
@@ -22,23 +21,18 @@ export const fetchSongsForPlaylist = async (
     return data.tracks ?? []
   }
 
-  const query: Record<string, string> = {}
-  if (playlist.sort) {
-    query.sort = playlist.sort
-  }
-  if (playlist.days) {
-    query.days = String(playlist.days)
+  const query = {
+    sort: playlist.sort,
+    days: String(playlist.days)
   }
 
-  const response = await honoClient.api.songs.$get(
-    Object.keys(query).length ? { query } : undefined,
-  )
+  const response = await honoClient.api.songs.$get({ query })
 
   if (!response.ok) {
     throw new Error(`Failed to load songs (${response.status})`)
   }
 
-  const data = (await response.json()) as SongsPayload
+  const data = (await response.json())
   return data.songs ?? []
 }
 
