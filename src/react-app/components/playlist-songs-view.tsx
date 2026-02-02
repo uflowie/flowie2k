@@ -26,7 +26,11 @@ import {
   useReactTable,
 } from "@tanstack/react-table"
 import { useVirtualizer } from "@tanstack/react-virtual"
-import { addTrackToPlaylist } from "@/react-app/lib/api"
+import {
+  addTrackToPlaylist,
+  deleteSong,
+  removeTrackFromPlaylist,
+} from "@/react-app/lib/api"
 import {
   getPlaylistKey,
   usePlaybackStore,
@@ -236,20 +240,27 @@ function SongRow({ row, onSelect }: SongRowProps) {
 
 type SongActionsMenuProps = {
   trackId: number
+  activePlaylist: ActivePlaylist
   playlists: { id: number; name: string }[]
   playlistsLoading: boolean
   playlistsError: boolean
   onAddToPlaylist: (playlistId: number, trackId: number) => void
+  onRemoveFromPlaylist: (playlistId: number, trackId: number) => void
+  onDeleteSong: (trackId: number) => void
 }
 
 function SongActionsMenu({
   trackId,
+  activePlaylist,
   playlists,
   playlistsLoading,
   playlistsError,
   onAddToPlaylist,
+  onRemoveFromPlaylist,
+  onDeleteSong,
 }: SongActionsMenuProps) {
   const [open, setOpen] = useState(false)
+  const isCustomPlaylist = activePlaylist.type === "custom"
   const handleAdd = useCallback(
     (playlistId: number) => {
       onAddToPlaylist(playlistId, trackId)
@@ -257,6 +268,23 @@ function SongActionsMenu({
     },
     [onAddToPlaylist, trackId],
   )
+  const handleRemove = useCallback(() => {
+    if (activePlaylist.type !== "custom") {
+      return
+    }
+    onRemoveFromPlaylist(activePlaylist.id, trackId)
+    setOpen(false)
+  }, [activePlaylist, onRemoveFromPlaylist, trackId])
+  const handleDelete = useCallback(() => {
+    const confirmed = window.confirm(
+      "Delete this song? This removes it from all playlists.",
+    )
+    if (!confirmed) {
+      return
+    }
+    onDeleteSong(trackId)
+    setOpen(false)
+  }, [onDeleteSong, trackId])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -313,6 +341,35 @@ function SongActionsMenu({
                 </Button>
               ))
             )}
+            <div className="my-1 h-px bg-border" role="separator" />
+            {isCustomPlaylist ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                role="menuitem"
+                className="w-full justify-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  handleRemove()
+                }}
+              >
+                Remove from {activePlaylist.name}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              role="menuitem"
+              className="text-destructive hover:text-destructive w-full justify-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-destructive/10"
+              onClick={(event) => {
+                event.stopPropagation()
+                handleDelete()
+              }}
+            >
+              Delete song
+            </Button>
           </div>
         </PopoverContent>
       ) : null}
@@ -347,7 +404,6 @@ export function PlaylistSongsView({
   const tableSort =
     tableSortState?.playlistKey === playlistKey ? tableSortState : null
 
-
   const {
     data: songs = [],
     isLoading,
@@ -373,6 +429,26 @@ export function PlaylistSongsView({
       queryClient.invalidateQueries({ queryKey: ["playlists"] })
     },
   })
+  const removeFromPlaylistMutation = useMutation({
+    mutationFn: ({
+      playlistId,
+      trackId,
+    }: {
+      playlistId: number
+      trackId: number
+    }) => removeTrackFromPlaylist(playlistId, trackId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["songs"] })
+      queryClient.invalidateQueries({ queryKey: ["playlists"] })
+    },
+  })
+  const deleteSongMutation = useMutation({
+    mutationFn: (trackId: number) => deleteSong(trackId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["songs"] })
+      queryClient.invalidateQueries({ queryKey: ["playlists"] })
+    },
+  })
 
   const isSortablePlaylist =
     activePlaylist.type === "custom" ||
@@ -384,6 +460,18 @@ export function PlaylistSongsView({
       addToPlaylistMutation.mutate({ playlistId, trackId })
     },
     [addToPlaylistMutation],
+  )
+  const handleRemoveFromPlaylist = useCallback(
+    (playlistId: number, trackId: number) => {
+      removeFromPlaylistMutation.mutate({ playlistId, trackId })
+    },
+    [removeFromPlaylistMutation],
+  )
+  const handleDeleteSong = useCallback(
+    (trackId: number) => {
+      deleteSongMutation.mutate(trackId)
+    },
+    [deleteSongMutation],
   )
 
   const handleSort = (key: SortKey) => {
@@ -541,10 +629,13 @@ export function PlaylistSongsView({
           return (
             <SongActionsMenu
               trackId={row.original.id}
+              activePlaylist={activePlaylist}
               playlists={playlists}
               playlistsLoading={playlistsLoading}
               playlistsError={playlistsError}
               onAddToPlaylist={handleAddToPlaylist}
+              onRemoveFromPlaylist={handleRemoveFromPlaylist}
+              onDeleteSong={handleDeleteSong}
             />
           )
         },
@@ -557,6 +648,8 @@ export function PlaylistSongsView({
     playlistsError,
     playlists,
     handleAddToPlaylist,
+    handleRemoveFromPlaylist,
+    handleDeleteSong,
   ])
 
   // eslint-disable-next-line react-hooks/incompatible-library

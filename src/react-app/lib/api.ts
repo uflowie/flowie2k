@@ -96,6 +96,56 @@ export const addTrackToPlaylist = async (
   return response.json()
 }
 
+export const removeTrackFromPlaylist = async (
+  playlistId: number,
+  trackId: number,
+) => {
+  const response = await honoClient.api.playlists[":id"].tracks[
+    ":trackId"
+  ].$delete({
+    param: {
+      id: encodeURIComponent(String(playlistId)),
+      trackId: encodeURIComponent(String(trackId)),
+    },
+  })
+
+  if (!response.ok) {
+    let message = `Failed to remove track (${response.status})`
+    try {
+      const payload = await response.json()
+      if (payload && typeof payload === "object" && "error" in payload) {
+        message = String(payload.error)
+      }
+    } catch {
+      // Use default message when the response isn't JSON.
+    }
+    throw new Error(message)
+  }
+
+  return response.json()
+}
+
+export const deleteSong = async (trackId: number) => {
+  const response = await honoClient.api.songs[":id"].$delete({
+    param: { id: encodeURIComponent(String(trackId)) },
+  })
+
+  if (!response.ok) {
+    let message = `Failed to delete song (${response.status})`
+    try {
+      const payload = await response.json()
+      if (payload && typeof payload === "object" && "error" in payload) {
+        message = String(payload.error)
+      }
+    } catch {
+      // Use default message when the response isn't JSON.
+    }
+    throw new Error(message)
+  }
+
+  return response.json()
+}
+
 export const recordListen = async (payload: {
   track_id: number
   playlist_id?: number

@@ -23,7 +23,7 @@ export const fetchSongsForPlaylist = async (
 
   const query = {
     sort: playlist.sort,
-    days: String(playlist.days)
+    ...(playlist.days == null ? {} : { days: String(playlist.days) })
   }
 
   const response = await honoClient.api.songs.$get({ query })
