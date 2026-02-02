@@ -404,9 +404,6 @@ export function PlaybackControls() {
             if (typeof nextValue !== "number") {
               return
             }
-            if (!isSeeking) {
-              return
-            }
             if (nextValue !== displayCurrentTime) {
               handleSeek(nextValue)
             }
@@ -418,7 +415,7 @@ export function PlaybackControls() {
             }
             handleSeek(nextValue)
           }}
-          className="w-full"
+          className="w-full py-2 -my-2"
           disabled={!currentSongId || !displayDuration}
           aria-label="Seek"
         />
