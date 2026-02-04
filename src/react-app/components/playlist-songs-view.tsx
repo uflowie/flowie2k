@@ -669,7 +669,7 @@ export function PlaylistSongsView({
     count: rows.length,
     getScrollElement: () => scrollElement,
     estimateSize: () => 30,
-    overscan: 10,
+    overscan: 30,
     getItemKey: getRowKey,
     enabled: Boolean(scrollElement),
   })
