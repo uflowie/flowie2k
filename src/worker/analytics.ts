@@ -1,22 +1,9 @@
-import { Hono, type Env } from 'hono'
-import { zValidator, type Hook } from '@hono/zod-validator'
+import { Hono } from 'hono'
+import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import type { Bindings } from './bindings'
 import type { ListeningStatsRow } from './db-types'
-
-const zodError = ((result, c) => {
-  if (!result.success) {
-    const message = result.error.issues[0]?.message ?? 'Invalid request'
-    return c.json({ error: message }, 400)
-  }
-}) satisfies Hook<
-  unknown,
-  Env,
-  string,
-  'json' | 'param' | 'query',
-  { error: string },
-  z.ZodType
->
+import { zodError } from './validation'
 const listenBodySchema = z.object({
   track_id: z
     .number()
