@@ -1,6 +1,6 @@
 import type { InferResponseType } from "hono/client"
 
-type HonoClient = typeof import("./api").honoClient
+type HonoClient = typeof import("./queries").honoClient
 
 export type SongsResponse = InferResponseType<HonoClient["api"]["songs"]["$get"]>
 export type SongsPayload = Extract<SongsResponse, { songs: unknown }>

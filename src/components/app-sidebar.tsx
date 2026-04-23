@@ -9,11 +9,10 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
 } from "@/components/ui/sidebar"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQueryClient } from "@tanstack/react-query"
 import { useRef, useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { Input } from "@/components/ui/input"
-import { createPlaylist, uploadSong } from "@/react-app/lib/api"
 import {
   getPlaylistStatusMessage,
   SMART_PLAYLISTS,
@@ -21,11 +20,13 @@ import {
   type ActivePlaylist,
 } from "@/react-app/lib/playlists"
 import {
-  getPlaylistsQueryOptions,
-  getSongsQueryOptions,
-  invalidatePlaylistsQuery,
   invalidateSongsQuery,
-} from "@/react-app/lib/query-options"
+  prefetchSongsQuery,
+  uploadSong,
+  useCreatePlaylistMutation,
+  usePlaylistsQuery,
+  useUploadSongMutation,
+} from "@/react-app/lib/queries"
 import { usePlaybackStore } from "@/react-app/lib/playback-store"
 import { toast } from "sonner"
 
@@ -42,18 +43,7 @@ export function AppSidebar() {
     failed: number
     inProgress: boolean
   } | null>(null)
-  const uploadMutation = useMutation({
-    mutationFn: uploadSong,
-    onSuccess: async () => {
-      await invalidateSongsQuery(queryClient)
-      toast.success("Upload complete.")
-    },
-    onSettled: () => {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
-      }
-    },
-  })
+  const uploadMutation = useUploadSongMutation()
   const folderUploadStatus = folderUploadProgress
     ? folderUploadProgress.inProgress
       ? `Uploading folder... ${folderUploadProgress.completed}/${folderUploadProgress.total}`
@@ -81,7 +71,7 @@ export function AppSidebar() {
     data: playlistsResponse,
     isLoading: playlistsLoading,
     isError: playlistsError,
-  } = useQuery(getPlaylistsQueryOptions())
+  } = usePlaylistsQuery()
   const playlists = playlistsResponse?.playlists ?? []
   const playlistStatusMessage = getPlaylistStatusMessage({
     playlists,
@@ -89,25 +79,10 @@ export function AppSidebar() {
     isError: playlistsError,
   })
 
-  const createPlaylistMutation = useMutation({
-    mutationFn: createPlaylist,
-    onSuccess: async (data) => {
-      await invalidatePlaylistsQuery(queryClient)
-      const playlist = {
-        type: "custom",
-        id: data.id,
-        name: data.name,
-      } as const
-      setActivePlaylist(playlist)
-      void navigate({
-        to: "/playlists/$playlistId",
-        params: { playlistId: String(playlist.id) },
-      })
-    },
-  })
+  const createPlaylistMutation = useCreatePlaylistMutation()
 
   const prefetchPlaylist = (playlist: ActivePlaylist) => {
-    void queryClient.prefetchQuery(getSongsQueryOptions(playlist))
+    void prefetchSongsQuery(queryClient, playlist)
   }
 
   const handleCreatePlaylist = () => {
@@ -115,7 +90,20 @@ export function AppSidebar() {
     if (!name || !name.trim()) {
       return
     }
-    createPlaylistMutation.mutate(name.trim())
+    createPlaylistMutation.mutate(name.trim(), {
+      onSuccess: (data) => {
+        const playlist = {
+          type: "custom",
+          id: data.id,
+          name: data.name,
+        } as const
+        setActivePlaylist(playlist)
+        void navigate({
+          to: "/playlists/$playlistId",
+          params: { playlistId: String(playlist.id) },
+        })
+      },
+    })
   }
 
   const handleUploadFolder = async (files: File[]) => {
@@ -211,7 +199,16 @@ export function AppSidebar() {
                 const file = event.target.files?.[0]
                 uploadMutation.reset()
                 if (file) {
-                  uploadMutation.mutate(file)
+                  uploadMutation.mutate(file, {
+                    onSuccess: () => {
+                      toast.success("Upload complete.")
+                    },
+                    onSettled: () => {
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = ""
+                      }
+                    },
+                  })
                 }
               }}
             />

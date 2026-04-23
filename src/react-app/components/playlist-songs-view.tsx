@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   ArrowDown,
@@ -27,19 +26,16 @@ import {
 } from "@tanstack/react-table"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import {
-  addTrackToPlaylist,
-  deleteSong,
-  removeTrackFromPlaylist,
-} from "@/react-app/lib/api"
-import {
   getPlaylistKey,
   getPlaylistStatusMessage,
   type ActivePlaylist,
 } from "@/react-app/lib/playlists"
 import {
-  getSongsQueryOptions,
-  invalidateLibraryQueries,
-} from "@/react-app/lib/query-options"
+  useAddTrackToPlaylistMutation,
+  useDeleteSongMutation,
+  useRemoveTrackFromPlaylistMutation,
+  useSongsQuery,
+} from "@/react-app/lib/queries"
 import { usePlaybackStore } from "@/react-app/lib/playback-store"
 import { getSongTitle } from "@/react-app/lib/songs"
 import type {
@@ -381,7 +377,6 @@ export function PlaylistSongsView({
   playlistsLoading,
   playlistsError,
 }: PlaylistSongsViewProps) {
-  const queryClient = useQueryClient()
   const startPlayback = usePlaybackStore((state) => state.startPlayback)
   const restartCurrentSong = usePlaybackStore(
     (state) => state.restartCurrentSong,
@@ -408,37 +403,10 @@ export function PlaylistSongsView({
     isError,
     error,
     refetch,
-  } = useQuery(getSongsQueryOptions(activePlaylist))
-  const addToPlaylistMutation = useMutation({
-    mutationFn: ({
-      playlistId,
-      trackId,
-    }: {
-      playlistId: number
-      trackId: number
-    }) => addTrackToPlaylist(playlistId, trackId),
-    onSuccess: async () => {
-      await invalidateLibraryQueries(queryClient)
-    },
-  })
-  const removeFromPlaylistMutation = useMutation({
-    mutationFn: ({
-      playlistId,
-      trackId,
-    }: {
-      playlistId: number
-      trackId: number
-    }) => removeTrackFromPlaylist(playlistId, trackId),
-    onSuccess: async () => {
-      await invalidateLibraryQueries(queryClient)
-    },
-  })
-  const deleteSongMutation = useMutation({
-    mutationFn: (trackId: number) => deleteSong(trackId),
-    onSuccess: async () => {
-      await invalidateLibraryQueries(queryClient)
-    },
-  })
+  } = useSongsQuery(activePlaylist)
+  const addToPlaylistMutation = useAddTrackToPlaylistMutation()
+  const removeFromPlaylistMutation = useRemoveTrackFromPlaylistMutation()
+  const deleteSongMutation = useDeleteSongMutation()
 
   const isSortablePlaylist =
     activePlaylist.type === "custom" ||

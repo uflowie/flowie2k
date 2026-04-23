@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useQuery } from "@tanstack/react-query"
 import {
   Gauge,
   Pause,
@@ -14,9 +13,9 @@ import { useShallow } from "zustand/react/shallow"
 
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
-import { getSongsQueryOptions } from "@/react-app/lib/query-options"
+import { getStreamUrl, useSongsQuery } from "@/react-app/lib/queries"
 import { usePlaybackStore } from "@/react-app/lib/playback-store"
-import { getSongTitle, getStreamUrl } from "@/react-app/lib/songs"
+import { getSongTitle } from "@/react-app/lib/songs"
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
@@ -93,9 +92,7 @@ export function PlaybackControls() {
     })),
   )
 
-  const { data: playbackSongs = [] } = useQuery(
-    getSongsQueryOptions(playbackPlaylist),
-  )
+  const { data: playbackSongs = [] } = useSongsQuery(playbackPlaylist)
 
   const currentSong = useMemo(
     () =>

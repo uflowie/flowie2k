@@ -1,12 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { useQuery } from "@tanstack/react-query"
 import { useEffect, useMemo } from "react"
 
 import {
   getPlaylistKey,
   resolvePlaylist,
 } from "@/react-app/lib/playlists"
-import { getPlaylistsQueryOptions } from "@/react-app/lib/query-options"
+import { usePlaylistsQuery } from "@/react-app/lib/queries"
 import { usePlaybackStore } from "@/react-app/lib/playback-store"
 import { PlaylistSongsView } from "@/react-app/components/playlist-songs-view"
 import type { PlaylistSummary } from "@/react-app/lib/types"
@@ -23,7 +22,7 @@ function PlaylistRoute() {
     data: playlistsResponse,
     isLoading: playlistsLoading,
     isError: playlistsError,
-  } = useQuery(getPlaylistsQueryOptions())
+  } = usePlaylistsQuery()
   const playlists = playlistsResponse?.playlists ?? EMPTY_PLAYLISTS
   const resolvedPlaylist = useMemo(
     () => resolvePlaylist(playlistId, playlists),

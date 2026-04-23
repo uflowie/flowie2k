@@ -1,4 +1,4 @@
-import { recordListen } from "@/react-app/lib/api"
+import { recordListen } from "@/react-app/lib/queries"
 import { usePlaybackStore } from "@/react-app/lib/playback-store"
 
 const TRACKER_KEY = "__flowieListenTrackerStarted"
