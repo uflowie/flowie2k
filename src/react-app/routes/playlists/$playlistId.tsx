@@ -2,70 +2,20 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { useEffect, useMemo } from "react"
 
-import { fetchPlaylists } from "@/react-app/lib/api"
 import {
   getPlaylistKey,
-  usePlaybackStore,
-  type ActivePlaylist,
-  type SmartPlaylist,
-} from "@/react-app/lib/playback-store"
+  resolvePlaylist,
+} from "@/react-app/lib/playlists"
+import { getPlaylistsQueryOptions } from "@/react-app/lib/query-options"
+import { usePlaybackStore } from "@/react-app/lib/playback-store"
 import { PlaylistSongsView } from "@/react-app/components/playlist-songs-view"
+import type { PlaylistSummary } from "@/react-app/lib/types"
 
-const smartPlaylists: Record<string, SmartPlaylist> = {
-  all: {
-    type: "smart",
-    id: "all",
-    name: "All Songs",
-    sort: "recent",
-  },
-  "popular-30": {
-    type: "smart",
-    id: "popular-30",
-    name: "Most Popular 30 days",
-    sort: "popular",
-    days: 30,
-  },
-  "popular-90": {
-    type: "smart",
-    id: "popular-90",
-    name: "Most Popular 90 days",
-    sort: "popular",
-    days: 90,
-  },
-  "popular-365": {
-    type: "smart",
-    id: "popular-365",
-    name: "Most Popular 365 days",
-    sort: "popular",
-    days: 365,
-  },
-}
+const EMPTY_PLAYLISTS: PlaylistSummary[] = []
 
 export const Route = createFileRoute("/playlists/$playlistId")({
   component: PlaylistRoute,
 })
-
-function resolvePlaylist(
-  playlistId: string,
-  playlists: { id: number; name: string }[],
-): ActivePlaylist {
-  const smart = smartPlaylists[playlistId]
-  if (smart) {
-    return smart
-  }
-
-  const numericId = Number(playlistId)
-  if (Number.isFinite(numericId)) {
-    const matched = playlists.find((playlist) => playlist.id === numericId)
-    return {
-      type: "custom",
-      id: numericId,
-      name: matched?.name ?? `Playlist ${numericId}`,
-    }
-  }
-
-  return smartPlaylists.all
-}
 
 function PlaylistRoute() {
   const { playlistId } = Route.useParams()
@@ -73,17 +23,8 @@ function PlaylistRoute() {
     data: playlistsResponse,
     isLoading: playlistsLoading,
     isError: playlistsError,
-  } = useQuery({
-    queryKey: ["playlists"],
-    queryFn: fetchPlaylists,
-    staleTime: 30_000,
-    gcTime: 5 * 60_000,
-  })
-  const playlists = useMemo(() => {
-    return (playlistsResponse as {
-      playlists?: { id: number; name: string }[]
-    })?.playlists ?? []
-  }, [playlistsResponse])
+  } = useQuery(getPlaylistsQueryOptions())
+  const playlists = playlistsResponse?.playlists ?? EMPTY_PLAYLISTS
   const resolvedPlaylist = useMemo(
     () => resolvePlaylist(playlistId, playlists),
     [playlistId, playlists],

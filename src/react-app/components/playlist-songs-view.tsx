@@ -33,11 +33,17 @@ import {
 } from "@/react-app/lib/api"
 import {
   getPlaylistKey,
-  usePlaybackStore,
+  getPlaylistStatusMessage,
   type ActivePlaylist,
-} from "@/react-app/lib/playback-store"
-import { fetchSongsForPlaylist } from "@/react-app/lib/songs"
+} from "@/react-app/lib/playlists"
+import {
+  getSongsQueryOptions,
+  invalidateLibraryQueries,
+} from "@/react-app/lib/query-options"
+import { usePlaybackStore } from "@/react-app/lib/playback-store"
+import { getSongTitle } from "@/react-app/lib/songs"
 import type {
+  PlaylistSummary,
   PlaylistSong,
 } from "@/react-app/lib/types"
 
@@ -90,11 +96,6 @@ const formatDate = (value?: string | null) => {
   }
 
   return dateFormatter.format(date)
-}
-
-const getSongTitle = (song: PlaylistSong) => {
-  const title = song.title?.trim()
-  return title ? title : song.filename
 }
 
 type SortKey =
@@ -202,7 +203,7 @@ const applyTableSort = (
 
 type PlaylistSongsViewProps = {
   playlist: ActivePlaylist
-  playlists: { id: number; name: string }[]
+  playlists: PlaylistSummary[]
   playlistsLoading: boolean
   playlistsError: boolean
 }
@@ -241,7 +242,7 @@ function SongRow({ row, onSelect }: SongRowProps) {
 type SongActionsMenuProps = {
   trackId: number
   activePlaylist: ActivePlaylist
-  playlists: { id: number; name: string }[]
+  playlists: PlaylistSummary[]
   playlistsLoading: boolean
   playlistsError: boolean
   onAddToPlaylist: (playlistId: number, trackId: number) => void
@@ -285,6 +286,11 @@ function SongActionsMenu({
     onDeleteSong(trackId)
     setOpen(false)
   }, [onDeleteSong, trackId])
+  const playlistStatusMessage = getPlaylistStatusMessage({
+    playlists,
+    isLoading: playlistsLoading,
+    isError: playlistsError,
+  })
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -311,17 +317,9 @@ function SongActionsMenu({
           onPointerDown={(event) => event.stopPropagation()}
         >
           <div className="flex flex-col">
-            {playlistsLoading ? (
+            {playlistStatusMessage ? (
               <div className="text-muted-foreground px-2 py-1.5 text-xs">
-                Loading playlists...
-              </div>
-            ) : playlistsError ? (
-              <div className="text-muted-foreground px-2 py-1.5 text-xs">
-                Failed to load playlists
-              </div>
-            ) : playlists.length === 0 ? (
-              <div className="text-muted-foreground px-2 py-1.5 text-xs">
-                No playlists yet
+                {playlistStatusMessage}
               </div>
             ) : (
               playlists.map((playlist) => (
@@ -410,12 +408,7 @@ export function PlaylistSongsView({
     isError,
     error,
     refetch,
-  } = useQuery({
-    queryKey: ["songs", playlistKey],
-    queryFn: () => fetchSongsForPlaylist(activePlaylist),
-    staleTime: 30_000,
-    gcTime: 5 * 60_000,
-  })
+  } = useQuery(getSongsQueryOptions(activePlaylist))
   const addToPlaylistMutation = useMutation({
     mutationFn: ({
       playlistId,
@@ -424,9 +417,8 @@ export function PlaylistSongsView({
       playlistId: number
       trackId: number
     }) => addTrackToPlaylist(playlistId, trackId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["songs"] })
-      queryClient.invalidateQueries({ queryKey: ["playlists"] })
+    onSuccess: async () => {
+      await invalidateLibraryQueries(queryClient)
     },
   })
   const removeFromPlaylistMutation = useMutation({
@@ -437,16 +429,14 @@ export function PlaylistSongsView({
       playlistId: number
       trackId: number
     }) => removeTrackFromPlaylist(playlistId, trackId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["songs"] })
-      queryClient.invalidateQueries({ queryKey: ["playlists"] })
+    onSuccess: async () => {
+      await invalidateLibraryQueries(queryClient)
     },
   })
   const deleteSongMutation = useMutation({
     mutationFn: (trackId: number) => deleteSong(trackId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["songs"] })
-      queryClient.invalidateQueries({ queryKey: ["playlists"] })
+    onSuccess: async () => {
+      await invalidateLibraryQueries(queryClient)
     },
   })
 

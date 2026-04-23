@@ -13,46 +13,21 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRef, useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { Input } from "@/components/ui/input"
-import { createPlaylist, fetchPlaylists, uploadSong } from "@/react-app/lib/api"
-import { fetchSongsForPlaylist } from "@/react-app/lib/songs"
+import { createPlaylist, uploadSong } from "@/react-app/lib/api"
 import {
-  getPlaylistKey,
-  usePlaybackStore,
+  getPlaylistStatusMessage,
+  SMART_PLAYLISTS,
+  toCustomPlaylist,
   type ActivePlaylist,
-  type SmartPlaylist,
-} from "@/react-app/lib/playback-store"
+} from "@/react-app/lib/playlists"
+import {
+  getPlaylistsQueryOptions,
+  getSongsQueryOptions,
+  invalidatePlaylistsQuery,
+  invalidateSongsQuery,
+} from "@/react-app/lib/query-options"
+import { usePlaybackStore } from "@/react-app/lib/playback-store"
 import { toast } from "sonner"
-
-const SMART_ALL: SmartPlaylist = {
-  type: "smart",
-  id: "all",
-  name: "All Songs",
-  sort: "recent",
-}
-
-const SMART_POPULAR_30: SmartPlaylist = {
-  type: "smart",
-  id: "popular-30",
-  name: "Most Popular 30 days",
-  sort: "popular",
-  days: 30,
-}
-
-const SMART_POPULAR_90: SmartPlaylist = {
-  type: "smart",
-  id: "popular-90",
-  name: "Most Popular 90 days",
-  sort: "popular",
-  days: 90,
-}
-
-const SMART_POPULAR_365: SmartPlaylist = {
-  type: "smart",
-  id: "popular-365",
-  name: "Most Popular 365 days",
-  sort: "popular",
-  days: 365,
-}
 
 export function AppSidebar() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -69,8 +44,8 @@ export function AppSidebar() {
   } | null>(null)
   const uploadMutation = useMutation({
     mutationFn: uploadSong,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["songs"] })
+    onSuccess: async () => {
+      await invalidateSongsQuery(queryClient)
       toast.success("Upload complete.")
     },
     onSettled: () => {
@@ -106,47 +81,33 @@ export function AppSidebar() {
     data: playlistsResponse,
     isLoading: playlistsLoading,
     isError: playlistsError,
-  } = useQuery({
-    queryKey: ["playlists"],
-    queryFn: fetchPlaylists,
-    staleTime: 30_000,
-    gcTime: 5 * 60_000,
+  } = useQuery(getPlaylistsQueryOptions())
+  const playlists = playlistsResponse?.playlists ?? []
+  const playlistStatusMessage = getPlaylistStatusMessage({
+    playlists,
+    isLoading: playlistsLoading,
+    isError: playlistsError,
   })
-  const playlists = (playlistsResponse as {
-    playlists?: { id: number; name: string }[]
-  })?.playlists ?? []
 
   const createPlaylistMutation = useMutation({
     mutationFn: createPlaylist,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["playlists"] })
-      if (data && typeof data === "object" && "id" in data && "name" in data) {
-        const playlist = {
-          type: "custom",
-          id: Number(data.id),
-          name: String(data.name),
-        } as const
-        setActivePlaylist(playlist)
-        void navigate({
-          to: "/playlists/$playlistId",
-          params: { playlistId: String(playlist.id) },
-        })
-      }
+    onSuccess: async (data) => {
+      await invalidatePlaylistsQuery(queryClient)
+      const playlist = {
+        type: "custom",
+        id: data.id,
+        name: data.name,
+      } as const
+      setActivePlaylist(playlist)
+      void navigate({
+        to: "/playlists/$playlistId",
+        params: { playlistId: String(playlist.id) },
+      })
     },
   })
 
   const prefetchPlaylist = (playlist: ActivePlaylist) => {
-    const playlistKey = getPlaylistKey(playlist)
-    void queryClient.prefetchQuery({
-      queryKey: ["songs", playlistKey],
-      queryFn: () => fetchSongsForPlaylist(playlist),
-      staleTime: 30_000,
-      gcTime: 5 * 60_000,
-    })
-  }
-
-  const selectSmartPlaylist = (playlist: SmartPlaylist) => {
-    setActivePlaylist(playlist)
+    void queryClient.prefetchQuery(getSongsQueryOptions(playlist))
   }
 
   const handleCreatePlaylist = () => {
@@ -189,7 +150,7 @@ export function AppSidebar() {
       }
     }
 
-    queryClient.invalidateQueries({ queryKey: ["songs"] })
+    await invalidateSongsQuery(queryClient)
 
     if (failed === 0) {
       toast.success(`Uploaded ${completed} songs.`)
@@ -275,90 +236,27 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={
-                    activePlaylist.type === "smart" &&
-                    activePlaylist.id === "all"
-                  }
-                >
-                  <Link
-                    to="/playlists/$playlistId"
-                    params={{ playlistId: "all" }}
-                    onClick={() =>
-                      selectSmartPlaylist(SMART_ALL)
+              {SMART_PLAYLISTS.map((playlist) => (
+                <SidebarMenuItem key={playlist.id}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={
+                      activePlaylist.type === "smart" &&
+                      activePlaylist.id === playlist.id
                     }
-                    onMouseEnter={() => prefetchPlaylist(SMART_ALL)}
-                    onFocus={() => prefetchPlaylist(SMART_ALL)}
                   >
-                    <span>All Songs</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={
-                    activePlaylist.type === "smart" &&
-                    activePlaylist.id === "popular-30"
-                  }
-                >
-                  <Link
-                    to="/playlists/$playlistId"
-                    params={{ playlistId: "popular-30" }}
-                    onClick={() =>
-                      selectSmartPlaylist(SMART_POPULAR_30)
-                    }
-                    onMouseEnter={() => prefetchPlaylist(SMART_POPULAR_30)}
-                    onFocus={() => prefetchPlaylist(SMART_POPULAR_30)}
-                  >
-                    <span>Most Popular 30 days</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={
-                    activePlaylist.type === "smart" &&
-                    activePlaylist.id === "popular-90"
-                  }
-                >
-                  <Link
-                    to="/playlists/$playlistId"
-                    params={{ playlistId: "popular-90" }}
-                    onClick={() =>
-                      selectSmartPlaylist(SMART_POPULAR_90)
-                    }
-                    onMouseEnter={() => prefetchPlaylist(SMART_POPULAR_90)}
-                    onFocus={() => prefetchPlaylist(SMART_POPULAR_90)}
-                  >
-                    <span>Most Popular 90 days</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={
-                    activePlaylist.type === "smart" &&
-                    activePlaylist.id === "popular-365"
-                  }
-                >
-                  <Link
-                    to="/playlists/$playlistId"
-                    params={{ playlistId: "popular-365" }}
-                    onClick={() =>
-                      selectSmartPlaylist(SMART_POPULAR_365)
-                    }
-                    onMouseEnter={() => prefetchPlaylist(SMART_POPULAR_365)}
-                    onFocus={() => prefetchPlaylist(SMART_POPULAR_365)}
-                  >
-                    <span>Most Popular 365 days</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+                    <Link
+                      to="/playlists/$playlistId"
+                      params={{ playlistId: playlist.id }}
+                      onClick={() => setActivePlaylist(playlist)}
+                      onMouseEnter={() => prefetchPlaylist(playlist)}
+                      onFocus={() => prefetchPlaylist(playlist)}
+                    >
+                      <span>{playlist.name}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -367,31 +265,15 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {playlistsLoading ? (
+              {playlistStatusMessage ? (
                 <SidebarMenuItem>
                   <SidebarMenuButton type="button" disabled>
-                    <span>Loading playlists...</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ) : playlistsError ? (
-                <SidebarMenuItem>
-                  <SidebarMenuButton type="button" disabled>
-                    <span>Failed to load playlists</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ) : playlists.length === 0 ? (
-                <SidebarMenuItem>
-                  <SidebarMenuButton type="button" disabled>
-                    <span>No playlists yet</span>
+                    <span>{playlistStatusMessage}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ) : (
                 playlists.map((playlist) => {
-                  const playlistData = {
-                    type: "custom",
-                    id: Number(playlist.id),
-                    name: playlist.name,
-                  } as const
+                  const playlistData = toCustomPlaylist(playlist)
                   return (
                     <SidebarMenuItem key={playlist.id}>
                       <SidebarMenuButton

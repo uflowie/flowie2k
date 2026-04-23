@@ -1,27 +1,10 @@
 import { create } from "zustand"
 
-export type SmartPlaylist = {
-  type: "smart"
-  id: "all" | "popular-30" | "popular-90" | "popular-365"
-  name: string
-  sort: "popular" | "recent"
-  days?: number
-}
-
-export type CustomPlaylist = {
-  type: "custom"
-  id: number
-  name: string
-}
-
-export type ActivePlaylist = SmartPlaylist | CustomPlaylist
-
-const defaultPlaylist: SmartPlaylist = {
-  type: "smart",
-  id: "all",
-  name: "All Songs",
-  sort: "recent",
-}
+import {
+  DEFAULT_PLAYLIST,
+  getPlaylistKey,
+  type ActivePlaylist,
+} from "@/react-app/lib/playlists"
 
 const readStoredBoolean = (key: string, fallback: boolean) => {
   const stored = window.localStorage.getItem(key)
@@ -73,11 +56,6 @@ const areIdsEqual = (first: number[], second: number[]) => {
   return first.every((value, index) => value === second[index])
 }
 
-export const getPlaylistKey = (playlist: ActivePlaylist) =>
-  playlist.type === "custom"
-    ? `custom:${playlist.id}`
-    : `smart:${playlist.id}`
-
 type StartPlaybackPayload = {
   playlist: ActivePlaylist
   songIds: number[]
@@ -109,9 +87,44 @@ type PlaybackStore = {
   toggleRepeat: () => void
 }
 
+const createPlaybackState = ({
+  playlist,
+  songIds,
+  shuffle,
+  startId,
+}: {
+  playlist: ActivePlaylist
+  songIds: number[]
+  shuffle: boolean
+  startId: number
+}) => {
+  const { queue, index } = buildQueue(songIds, shuffle, startId)
+  return {
+    playbackPlaylist: playlist,
+    queueSource: songIds,
+    queue,
+    queueIndex: index,
+    currentSongId: startId,
+    isPlaying: true,
+  }
+}
+
+const createQueueState = (
+  songIds: number[],
+  shuffle: boolean,
+  currentSongId: number | null,
+) => {
+  const { queue, index } = buildQueue(songIds, shuffle, currentSongId)
+  return {
+    queueSource: songIds,
+    queue,
+    queueIndex: index,
+  }
+}
+
 export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
-  activePlaylist: defaultPlaylist,
-  playbackPlaylist: defaultPlaylist,
+  activePlaylist: DEFAULT_PLAYLIST,
+  playbackPlaylist: DEFAULT_PLAYLIST,
   activePlaylistSongIds: [],
   queueSource: [],
   queue: [],
@@ -152,8 +165,10 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       if (state.shuffle) {
         return { ...nextState, queueSource: songIds }
       }
-      const { queue, index } = buildQueue(songIds, state.shuffle, state.currentSongId)
-      return { ...nextState, queueSource: songIds, queue, queueIndex: index }
+      return {
+        ...nextState,
+        ...createQueueState(songIds, state.shuffle, state.currentSongId),
+      }
     }),
   startPlayback: ({ playlist, songIds, songId }) => {
     if (!songIds.length) {
@@ -163,15 +178,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
     if (!startId) {
       return
     }
-    const { queue, index } = buildQueue(songIds, get().shuffle, startId)
-    set({
-      playbackPlaylist: playlist,
-      queueSource: songIds,
-      queue,
-      queueIndex: index,
-      currentSongId: startId,
-      isPlaying: true,
-    })
+    set(createPlaybackState({ playlist, songIds, shuffle: get().shuffle, startId }))
   },
   restartCurrentSong: () =>
     set((state) => ({
@@ -188,19 +195,14 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       return
     }
     const startId = state.activePlaylistSongIds[0]
-    const { queue, index } = buildQueue(
-      state.activePlaylistSongIds,
-      state.shuffle,
-      startId,
+    set(
+      createPlaybackState({
+        playlist: state.activePlaylist,
+        songIds: state.activePlaylistSongIds,
+        shuffle: state.shuffle,
+        startId,
+      }),
     )
-    set({
-      playbackPlaylist: state.activePlaylist,
-      queueSource: state.activePlaylistSongIds,
-      queue,
-      queueIndex: index,
-      currentSongId: startId,
-      isPlaying: true,
-    })
   },
   pause: () => set({ isPlaying: false }),
   setIsPlaying: (isPlaying) => set({ isPlaying }),
@@ -229,15 +231,9 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       if (!state.queueSource.length) {
         return { shuffle: nextShuffle }
       }
-      const { queue, index } = buildQueue(
-        state.queueSource,
-        nextShuffle,
-        state.currentSongId,
-      )
       return {
         shuffle: nextShuffle,
-        queue,
-        queueIndex: index,
+        ...createQueueState(state.queueSource, nextShuffle, state.currentSongId),
       }
     }),
   toggleRepeat: () =>

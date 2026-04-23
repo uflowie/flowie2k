@@ -14,12 +14,9 @@ import { useShallow } from "zustand/react/shallow"
 
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
-import {
-  getPlaylistKey,
-  usePlaybackStore,
-} from "@/react-app/lib/playback-store"
-import { fetchSongsForPlaylist, getStreamUrl } from "@/react-app/lib/songs"
-import type { PlaylistSong } from "@/react-app/lib/types"
+import { getSongsQueryOptions } from "@/react-app/lib/query-options"
+import { usePlaybackStore } from "@/react-app/lib/playback-store"
+import { getSongTitle, getStreamUrl } from "@/react-app/lib/songs"
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
@@ -44,11 +41,6 @@ const formatTime = (value?: number | null) => {
   return `${minutes}:${remaining.toString().padStart(2, "0")}`
 }
 
-const getSongTitle = (song: PlaylistSong) => {
-  const title = song.title?.trim()
-  return title ? title : song.filename
-}
-
 const scheduleStoredValue = (
   key: string,
   value: string,
@@ -67,7 +59,6 @@ const scheduleStoredValue = (
 
 export function PlaybackControls() {
   const playbackPlaylist = usePlaybackStore((state) => state.playbackPlaylist)
-  const playbackPlaylistKey = getPlaylistKey(playbackPlaylist)
   const {
     currentSongId,
     isPlaying,
@@ -102,12 +93,9 @@ export function PlaybackControls() {
     })),
   )
 
-  const { data: playbackSongs = [] } = useQuery({
-    queryKey: ["songs", playbackPlaylistKey],
-    queryFn: () => fetchSongsForPlaylist(playbackPlaylist),
-    staleTime: 30_000,
-    gcTime: 5 * 60_000,
-  })
+  const { data: playbackSongs = [] } = useQuery(
+    getSongsQueryOptions(playbackPlaylist),
+  )
 
   const currentSong = useMemo(
     () =>
