@@ -49,28 +49,20 @@ const getSongTitle = (song: PlaylistSong) => {
   return title ? title : song.filename
 }
 
-const useDebouncedLocalStorage = (
+const scheduleStoredValue = (
   key: string,
   value: string,
+  timeoutRef: React.RefObject<number | null>,
   delayMs = 200,
 ) => {
-  const timeoutRef = useRef<number | null>(null)
+  if (timeoutRef.current !== null) {
+    window.clearTimeout(timeoutRef.current)
+  }
 
-  useEffect(() => {
-    if (timeoutRef.current !== null) {
-      window.clearTimeout(timeoutRef.current)
-    }
-
-    timeoutRef.current = window.setTimeout(() => {
-      window.localStorage.setItem(key, value)
-    }, delayMs)
-
-    return () => {
-      if (timeoutRef.current !== null) {
-        window.clearTimeout(timeoutRef.current)
-      }
-    }
-  }, [key, value, delayMs])
+  timeoutRef.current = window.setTimeout(() => {
+    window.localStorage.setItem(key, value)
+    timeoutRef.current = null
+  }, delayMs)
 }
 
 export function PlaybackControls() {
@@ -133,6 +125,8 @@ export function PlaybackControls() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const lastSongIdRef = useRef<number | null>(null)
   const lastRestartRef = useRef<number>(restartToken)
+  const volumeStorageTimeoutRef = useRef<number | null>(null)
+  const playbackRateStorageTimeoutRef = useRef<number | null>(null)
   const [volume, setVolume] = useState(() =>
     clamp(readStoredNumber("player.volume", 1), 0, 1),
   )
@@ -151,9 +145,6 @@ export function PlaybackControls() {
     [displayCurrentTime, displayDuration],
   )
   const canPlay = Boolean(currentSongId || activePlaylistSongIds.length)
-
-  useDebouncedLocalStorage("player.volume", String(volume))
-  useDebouncedLocalStorage("player.playbackRate", String(playbackRate))
 
   useEffect(() => {
     const audio = audioRef.current
@@ -187,28 +178,6 @@ export function PlaybackControls() {
     lastSongIdRef.current = currentSongId
     lastRestartRef.current = restartToken
   }, [currentSongId, isPlaying, restartToken, setIsPlaying])
-
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) {
-      return
-    }
-
-    const handlePlay = () => {
-      setIsPlaying(true)
-    }
-    const handlePause = () => {
-      setIsPlaying(false)
-    }
-
-    audio.addEventListener("play", handlePlay)
-    audio.addEventListener("pause", handlePause)
-
-    return () => {
-      audio.removeEventListener("play", handlePlay)
-      audio.removeEventListener("pause", handlePause)
-    }
-  }, [setIsPlaying])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -277,6 +246,42 @@ export function PlaybackControls() {
 
     next()
   }, [next, repeat])
+  const handlePlaybackRateChange = useCallback((value: number[]) => {
+    const nextValue = value[0]
+    if (typeof nextValue !== "number") {
+      return
+    }
+
+    const clamped = clamp(nextValue, 0.5, 1.5)
+    setPlaybackRate((current) => {
+      if (current === clamped) {
+        return current
+      }
+
+      scheduleStoredValue(
+        "player.playbackRate",
+        String(clamped),
+        playbackRateStorageTimeoutRef,
+      )
+      return clamped
+    })
+  }, [])
+  const handleVolumeChange = useCallback((value: number[]) => {
+    const nextValue = value[0]
+    if (typeof nextValue !== "number") {
+      return
+    }
+
+    const clamped = clamp(nextValue, 0, 1)
+    setVolume((current) => {
+      if (current === clamped) {
+        return current
+      }
+
+      scheduleStoredValue("player.volume", String(clamped), volumeStorageTimeoutRef)
+      return clamped
+    })
+  }, [])
 
   return (
     <div className="rounded-lg border bg-card p-4">
@@ -346,16 +351,7 @@ export function PlaybackControls() {
               max={1.5}
               step={0.01}
               value={playbackRateValue}
-              onValueChange={(value) => {
-                const nextValue = value[0]
-                if (typeof nextValue !== "number") {
-                  return
-                }
-                const clamped = clamp(nextValue, 0.5, 1.5)
-                if (clamped !== playbackRate) {
-                  setPlaybackRate(clamped)
-                }
-              }}
+              onValueChange={handlePlaybackRateChange}
               className="w-24"
               aria-label="Playback speed"
             />
@@ -370,16 +366,7 @@ export function PlaybackControls() {
               max={1}
               step={0.01}
               value={volumeValue}
-              onValueChange={(value) => {
-                const nextValue = value[0]
-                if (typeof nextValue !== "number") {
-                  return
-                }
-                const clamped = clamp(nextValue, 0, 1)
-                if (clamped !== volume) {
-                  setVolume(clamped)
-                }
-              }}
+              onValueChange={handleVolumeChange}
               className="w-24"
               aria-label="Volume"
             />
@@ -437,6 +424,8 @@ export function PlaybackControls() {
           setDuration(Number.isFinite(nextDuration) ? nextDuration : 0)
         }}
         onEnded={handleEnded}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
       />
     </div>
   )
