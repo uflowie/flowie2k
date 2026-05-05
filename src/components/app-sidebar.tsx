@@ -40,6 +40,7 @@ import {
   useUploadSongMutation,
 } from "@/react-app/lib/queries"
 import { usePlaybackStore } from "@/react-app/lib/playback-store"
+import { BackgroundColorPicker } from "@/react-app/components/background-color-picker"
 import { toast } from "sonner"
 
 const SMART_PLAYLIST_ICONS: Record<SmartPlaylistId, LucideIcon> = {
@@ -328,7 +329,9 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter />
+      <SidebarFooter>
+        <BackgroundColorPicker />
+      </SidebarFooter>
     </Sidebar>
   )
 }
