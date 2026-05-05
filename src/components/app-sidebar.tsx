@@ -296,7 +296,7 @@ export function AppSidebar() {
                         onMouseEnter={() => prefetchPlaylist(playlist)}
                         onFocus={() => prefetchPlaylist(playlist)}
                       >
-                        <Icon className={isActive ? "text-primary" : undefined} />
+                        <Icon className={isActive ? "text-foreground" : undefined} />
                         <span>{playlist.name}</span>
                       </Link>
                     </SidebarMenuButton>
@@ -337,7 +337,7 @@ export function AppSidebar() {
                           onMouseEnter={() => prefetchPlaylist(playlistData)}
                           onFocus={() => prefetchPlaylist(playlistData)}
                         >
-                          <ListMusic className={isActive ? "text-primary" : undefined} />
+                          <ListMusic className={isActive ? "text-foreground" : undefined} />
                           <span>{playlist.name}</span>
                         </Link>
                       </SidebarMenuButton>

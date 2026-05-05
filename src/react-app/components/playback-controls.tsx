@@ -61,8 +61,8 @@ const toggleControlClass = (active: boolean) =>
   [
     "relative size-12 after:absolute after:bottom-1.5 after:left-1/2 after:size-1 after:-translate-x-1/2 after:rounded-full [&_svg]:size-7",
     active
-      ? "text-primary hover:bg-accent after:bg-primary after:shadow-[0_0_10px_hsl(var(--primary))]"
-      : "text-muted-foreground/55 hover:text-foreground after:bg-muted-foreground/25",
+      ? "text-foreground hover:bg-accent after:bg-foreground after:shadow-[0_0_10px_var(--foreground)]"
+      : "text-foreground/55 hover:text-foreground after:bg-foreground/25",
   ].join(" ")
 
 export function PlaybackControls() {
@@ -284,7 +284,7 @@ export function PlaybackControls() {
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(28rem,44rem)_minmax(0,1fr)] lg:items-center">
         <div className="flex min-w-0 items-center gap-3">
           <div className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-muted/30">
-            <Music className="size-4 text-muted-foreground" />
+            <Music className="size-4 text-foreground/60" />
           </div>
           <div className="flex min-w-0 flex-1 flex-col justify-center space-y-0.5">
             <p className="truncate text-sm font-medium">{currentSongLabel}</p>
@@ -331,7 +331,7 @@ export function PlaybackControls() {
               onClick={handleTogglePlay}
               disabled={!canPlay}
               aria-label={isPlaying ? "Pause" : "Play"}
-              className="size-12 text-primary [&_svg]:size-7"
+              className="size-12 text-foreground [&_svg]:size-7"
             >
               {isPlaying ? <Pause /> : <Play />}
             </Button>
@@ -392,7 +392,7 @@ export function PlaybackControls() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-          <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground [&_svg]:text-foreground/70">
             <Gauge className="size-3.5" />
             <Slider
               min={0.5}
@@ -407,7 +407,7 @@ export function PlaybackControls() {
               {Math.round(playbackRate * 100)}%
             </span>
           </label>
-          <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground [&_svg]:text-foreground/70">
             <Volume2 className="size-3.5" />
             <Slider
               min={0}

@@ -30,7 +30,7 @@ function ColorPickerRow({
   }
 
   return (
-    <label className="flex h-8 w-full items-center gap-2 rounded-sm p-1.5 text-left text-xs outline-hidden transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+    <label className="flex h-7 w-full items-center gap-2 rounded-sm p-1.5 text-left text-xs outline-hidden transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
       <input
         id={id}
         type="color"

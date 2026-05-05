@@ -36,7 +36,12 @@ export const setFontColor = (color: string) => {
   const root = document.documentElement
   root.style.setProperty("--foreground", color)
   root.style.setProperty("--card-foreground", color)
+  root.style.setProperty("--popover-foreground", color)
+  root.style.setProperty("--secondary-foreground", color)
+  root.style.setProperty("--accent-foreground", color)
+  root.style.setProperty("--muted-foreground", color)
   root.style.setProperty("--sidebar-foreground", color)
+  root.style.setProperty("--sidebar-accent-foreground", color)
 }
 
 export const clearBackgroundColor = () => {
