@@ -94,13 +94,13 @@ test.describe("playlist ui", () => {
 
     await expect(page.getByRole("link", { name: "All Songs" })).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Most Popular 30 days" }),
+      page.getByRole("link", { name: "Most Popular 30" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Most Popular 90 days" }),
+      page.getByRole("link", { name: "Most Popular 90" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Most Popular 365 days" }),
+      page.getByRole("link", { name: "Most Popular 365" }),
     ).toBeVisible();
 
     await expect(page.getByRole("link", { name: "Chill Mix" })).toBeVisible();

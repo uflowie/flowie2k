@@ -4,20 +4,32 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
 } from "@/components/ui/sidebar"
 import { useQueryClient } from "@tanstack/react-query"
 import { useRef, useState } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { Input } from "@/components/ui/input"
 import {
+  CalendarRange,
+  Flame,
+  FolderUp,
+  ListMusic,
+  ListPlus,
+  Music,
+  TrendingUp,
+  Upload,
+  type LucideIcon,
+} from "lucide-react"
+import {
   getPlaylistStatusMessage,
   SMART_PLAYLISTS,
   toCustomPlaylist,
   type ActivePlaylist,
+  type SmartPlaylistId,
 } from "@/react-app/lib/playlists"
 import {
   invalidateSongsQuery,
@@ -29,6 +41,13 @@ import {
 } from "@/react-app/lib/queries"
 import { usePlaybackStore } from "@/react-app/lib/playback-store"
 import { toast } from "sonner"
+
+const SMART_PLAYLIST_ICONS: Record<SmartPlaylistId, LucideIcon> = {
+  "all": Music,
+  "popular-30": Flame,
+  "popular-90": TrendingUp,
+  "popular-365": CalendarRange,
+}
 
 export function AppSidebar() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -155,6 +174,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupLabel>Library</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -163,6 +183,7 @@ export function AppSidebar() {
                   disabled={uploadMutation.isPending || isFolderUploading}
                   onClick={() => fileInputRef.current?.click()}
                 >
+                  <Upload />
                   <span>Upload Song</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -172,6 +193,7 @@ export function AppSidebar() {
                   disabled={uploadMutation.isPending || isFolderUploading}
                   onClick={() => folderInputRef.current?.click()}
                 >
+                  <FolderUp />
                   <span>Upload Folder</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -181,6 +203,7 @@ export function AppSidebar() {
                   disabled={createPlaylistMutation.isPending}
                   onClick={handleCreatePlaylist}
                 >
+                  <ListPlus />
                   <span>Add New Playlist</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -228,38 +251,39 @@ export function AppSidebar() {
             />
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarSeparator />
 
         <SidebarGroup>
+          <SidebarGroupLabel>Mixes</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {SMART_PLAYLISTS.map((playlist) => (
-                <SidebarMenuItem key={playlist.id}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={
-                      activePlaylist.type === "smart" &&
-                      activePlaylist.id === playlist.id
-                    }
-                  >
-                    <Link
-                      to="/playlists/$playlistId"
-                      params={{ playlistId: playlist.id }}
-                      onClick={() => setActivePlaylist(playlist)}
-                      onMouseEnter={() => prefetchPlaylist(playlist)}
-                      onFocus={() => prefetchPlaylist(playlist)}
-                    >
-                      <span>{playlist.name}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {SMART_PLAYLISTS.map((playlist) => {
+                const Icon = SMART_PLAYLIST_ICONS[playlist.id]
+                const isActive =
+                  activePlaylist.type === "smart" &&
+                  activePlaylist.id === playlist.id
+                return (
+                  <SidebarMenuItem key={playlist.id}>
+                    <SidebarMenuButton asChild isActive={isActive}>
+                      <Link
+                        to="/playlists/$playlistId"
+                        params={{ playlistId: playlist.id }}
+                        onClick={() => setActivePlaylist(playlist)}
+                        onMouseEnter={() => prefetchPlaylist(playlist)}
+                        onFocus={() => prefetchPlaylist(playlist)}
+                      >
+                        <Icon className={isActive ? "text-primary" : undefined} />
+                        <span>{playlist.name}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarSeparator />
 
         <SidebarGroup>
+          <SidebarGroupLabel>Playlists</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {playlistStatusMessage ? (
@@ -271,15 +295,12 @@ export function AppSidebar() {
               ) : (
                 playlists.map((playlist) => {
                   const playlistData = toCustomPlaylist(playlist)
+                  const isActive =
+                    activePlaylist.type === "custom" &&
+                    activePlaylist.id === playlistData.id
                   return (
                     <SidebarMenuItem key={playlist.id}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={
-                          activePlaylist.type === "custom" &&
-                          activePlaylist.id === playlistData.id
-                        }
-                      >
+                      <SidebarMenuButton asChild isActive={isActive}>
                         <Link
                           to="/playlists/$playlistId"
                           params={{ playlistId: String(playlist.id) }}
@@ -287,6 +308,7 @@ export function AppSidebar() {
                           onMouseEnter={() => prefetchPlaylist(playlistData)}
                           onFocus={() => prefetchPlaylist(playlistData)}
                         >
+                          <ListMusic className={isActive ? "text-primary" : undefined} />
                           <span>{playlist.name}</span>
                         </Link>
                       </SidebarMenuButton>
