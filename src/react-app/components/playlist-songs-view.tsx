@@ -717,7 +717,7 @@ export function PlaylistSongsView({
             No songs match "{searchQuery.trim()}".
           </div>
         ) : (
-          <div className="[overflow-anchor:none] flex min-h-0 flex-1 flex-col bg-card/35">
+          <div className="[overflow-anchor:none] flex min-h-0 flex-1 flex-col bg-background">
             <div
               ref={setTableContainerRef}
               className="relative flex-1 overflow-auto"
