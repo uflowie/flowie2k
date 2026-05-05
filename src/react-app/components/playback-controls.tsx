@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Gauge,
+  Music,
   Pause,
   Play,
   Repeat,
@@ -281,18 +282,23 @@ export function PlaybackControls() {
   return (
     <div className="bg-background px-3 py-2">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(28rem,44rem)_minmax(0,1fr)] lg:items-center">
-        <div className="flex min-w-0 flex-col justify-center space-y-1">
-          <p className="truncate text-sm font-medium">{currentSongLabel}</p>
-          {currentArtistLabel ? (
-            <p className="truncate text-xs text-muted-foreground">
-              {currentArtistLabel}
-            </p>
-          ) : null}
-          {currentAlbumLabel ? (
-            <p className="truncate text-xs text-muted-foreground">
-              {currentAlbumLabel}
-            </p>
-          ) : null}
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-muted/30">
+            <Music className="size-4 text-muted-foreground" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col justify-center space-y-0.5">
+            <p className="truncate text-sm font-medium">{currentSongLabel}</p>
+            {currentArtistLabel ? (
+              <p className="truncate text-xs text-muted-foreground">
+                {currentArtistLabel}
+              </p>
+            ) : null}
+            {currentAlbumLabel ? (
+              <p className="truncate text-xs text-muted-foreground">
+                {currentAlbumLabel}
+              </p>
+            ) : null}
+          </div>
         </div>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center justify-center gap-1.5">

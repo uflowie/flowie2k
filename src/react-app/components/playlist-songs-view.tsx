@@ -666,24 +666,29 @@ export function PlaylistSongsView({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pt-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="relative w-[40%] min-w-64">
-            <Search className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-            <Input
-              type="search"
-              placeholder="Search playlist"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              className="w-full pl-8"
-              aria-label="Search playlist"
-            />
-          </div>
-          <div className="justify-self-end text-xs text-muted-foreground">
-            {isLoading
-              ? "Loading songs..."
-              : hasSearch
-                ? `${visibleSongs.length} of ${songs.length} songs`
-                : `${songs.length} songs`}
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">
+            {activePlaylist.name}
+          </h1>
+          <div className="flex min-w-0 shrink-0 items-center justify-end gap-3">
+            <div className="relative w-80 max-w-[45vw]">
+              <Search className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+              <Input
+                type="search"
+                placeholder="Search playlist"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="w-full pl-8"
+                aria-label="Search playlist"
+              />
+            </div>
+            <div className="shrink-0 text-xs text-muted-foreground">
+              {isLoading
+                ? "Loading songs..."
+                : hasSearch
+                  ? `${visibleSongs.length} of ${songs.length} songs`
+                  : `${songs.length} songs`}
+            </div>
           </div>
         </div>
         {isLoading ? (
