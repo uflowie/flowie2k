@@ -40,8 +40,11 @@ import {
   useUploadSongMutation,
 } from "@/react-app/lib/queries"
 import { usePlaybackStore } from "@/react-app/lib/playback-store"
-import { BackgroundColorPicker } from "@/react-app/components/background-color-picker"
-import { useStoredBackgroundColor } from "@/react-app/lib/appearance"
+import {
+  BackgroundColorPicker,
+  FontColorPicker,
+} from "@/react-app/components/background-color-picker"
+import { useStoredAppearance } from "@/react-app/lib/appearance"
 import { toast } from "sonner"
 
 const SMART_PLAYLIST_ICONS: Record<SmartPlaylistId, LucideIcon> = {
@@ -52,7 +55,7 @@ const SMART_PLAYLIST_ICONS: Record<SmartPlaylistId, LucideIcon> = {
 }
 
 export function AppSidebar() {
-  useStoredBackgroundColor()
+  useStoredAppearance()
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const folderInputRef = useRef<HTMLInputElement | null>(null)
@@ -262,6 +265,9 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <BackgroundColorPicker />
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <FontColorPicker />
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>

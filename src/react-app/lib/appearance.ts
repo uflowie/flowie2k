@@ -1,8 +1,10 @@
 import { useEffect } from "react"
 
-const STORAGE_KEY = "appearance.backgroundColor"
-const LEGACY_STORAGE_KEY = "debug.backgroundColor"
+const BACKGROUND_STORAGE_KEY = "appearance.backgroundColor"
+const BACKGROUND_LEGACY_STORAGE_KEY = "debug.backgroundColor"
+const FONT_STORAGE_KEY = "appearance.fontColor"
 export const DEFAULT_BACKGROUND = "#111b16"
+export const DEFAULT_FONT_COLOR = "#d2d8cf"
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
@@ -30,6 +32,13 @@ export const setBackgroundColor = (color: string) => {
   root.style.setProperty("--sidebar-accent", accentColor)
 }
 
+export const setFontColor = (color: string) => {
+  const root = document.documentElement
+  root.style.setProperty("--foreground", color)
+  root.style.setProperty("--card-foreground", color)
+  root.style.setProperty("--sidebar-foreground", color)
+}
+
 export const clearBackgroundColor = () => {
   const root = document.documentElement
   root.style.removeProperty("--background")
@@ -39,33 +48,39 @@ export const clearBackgroundColor = () => {
   root.style.removeProperty("--sidebar-accent")
 }
 
-export const readStoredColor = () => {
+export const readStoredBackgroundColor = () => {
   const storedColor =
-    window.localStorage.getItem(STORAGE_KEY) ??
-    window.localStorage.getItem(LEGACY_STORAGE_KEY)
+    window.localStorage.getItem(BACKGROUND_STORAGE_KEY) ??
+    window.localStorage.getItem(BACKGROUND_LEGACY_STORAGE_KEY)
 
   if (storedColor) {
-    window.localStorage.setItem(STORAGE_KEY, storedColor)
-    window.localStorage.removeItem(LEGACY_STORAGE_KEY)
+    window.localStorage.setItem(BACKGROUND_STORAGE_KEY, storedColor)
+    window.localStorage.removeItem(BACKGROUND_LEGACY_STORAGE_KEY)
   }
 
   return storedColor ?? DEFAULT_BACKGROUND
 }
 
+export const readStoredFontColor = () => {
+  return window.localStorage.getItem(FONT_STORAGE_KEY) ?? DEFAULT_FONT_COLOR
+}
+
 export const storeBackgroundColor = (color: string) => {
-  window.localStorage.setItem(STORAGE_KEY, color)
+  window.localStorage.setItem(BACKGROUND_STORAGE_KEY, color)
+}
+
+export const storeFontColor = (color: string) => {
+  window.localStorage.setItem(FONT_STORAGE_KEY, color)
 }
 
 export const clearStoredBackgroundColor = () => {
-  window.localStorage.removeItem(STORAGE_KEY)
-  window.localStorage.removeItem(LEGACY_STORAGE_KEY)
+  window.localStorage.removeItem(BACKGROUND_STORAGE_KEY)
+  window.localStorage.removeItem(BACKGROUND_LEGACY_STORAGE_KEY)
 }
 
-export function useStoredBackgroundColor() {
+export function useStoredAppearance() {
   useEffect(() => {
-    const storedColor = readStoredColor()
-    if (storedColor) {
-      setBackgroundColor(storedColor)
-    }
+    setBackgroundColor(readStoredBackgroundColor())
+    setFontColor(readStoredFontColor())
   }, [])
 }
