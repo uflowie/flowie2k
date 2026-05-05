@@ -20,8 +20,8 @@ import {
   ListMusic,
   ListPlus,
   Music,
-  TrendingUp,
   Upload,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react"
 import {
@@ -41,6 +41,7 @@ import {
 } from "@/react-app/lib/queries"
 import { usePlaybackStore } from "@/react-app/lib/playback-store"
 import { BackgroundColorPicker } from "@/react-app/components/background-color-picker"
+import { useStoredBackgroundColor } from "@/react-app/lib/appearance"
 import { toast } from "sonner"
 
 const SMART_PLAYLIST_ICONS: Record<SmartPlaylistId, LucideIcon> = {
@@ -51,6 +52,8 @@ const SMART_PLAYLIST_ICONS: Record<SmartPlaylistId, LucideIcon> = {
 }
 
 export function AppSidebar() {
+  useStoredBackgroundColor()
+
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const folderInputRef = useRef<HTMLInputElement | null>(null)
   const queryClient = useQueryClient()
@@ -254,6 +257,17 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
+          <SidebarGroupLabel>Customization</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <BackgroundColorPicker />
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
           <SidebarGroupLabel>Mixes</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -329,9 +343,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <BackgroundColorPicker />
-      </SidebarFooter>
+      <SidebarFooter />
     </Sidebar>
   )
 }
