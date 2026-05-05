@@ -279,7 +279,7 @@ export function PlaybackControls() {
   }, [])
 
   return (
-    <div className="border-t bg-card/95 px-3 py-2">
+    <div className="bg-background px-3 py-2">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(28rem,44rem)_minmax(0,1fr)] lg:items-center">
         <div className="flex min-w-0 flex-col justify-center space-y-1">
           <p className="truncate text-sm font-medium">{currentSongLabel}</p>
