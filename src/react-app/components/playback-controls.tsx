@@ -56,6 +56,14 @@ const scheduleStoredValue = (
   }, delayMs)
 }
 
+const toggleControlClass = (active: boolean) =>
+  [
+    "relative size-12 after:absolute after:bottom-1.5 after:left-1/2 after:size-1 after:-translate-x-1/2 after:rounded-full [&_svg]:size-7",
+    active
+      ? "text-primary hover:bg-accent after:bg-primary after:shadow-[0_0_10px_hsl(var(--primary))]"
+      : "text-muted-foreground/55 hover:text-foreground after:bg-muted-foreground/25",
+  ].join(" ")
+
 export function PlaybackControls() {
   const playbackPlaylist = usePlaybackStore((state) => state.playbackPlaylist)
   const {
@@ -106,6 +114,8 @@ export function PlaybackControls() {
     : currentSongId
       ? "Loading..."
       : "Select a song"
+  const currentArtistLabel = currentSong?.artist?.trim()
+  const currentAlbumLabel = currentSong?.album?.trim()
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const lastSongIdRef = useRef<number | null>(null)
@@ -269,90 +279,137 @@ export function PlaybackControls() {
   }, [])
 
   return (
-    <div className="rounded-lg border bg-card p-4">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center">
+    <div className="border-t bg-card/95 px-3 py-2">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(28rem,44rem)_minmax(0,1fr)] lg:items-center">
+        <div className="flex min-w-0 flex-col justify-center space-y-1">
+          <p className="truncate text-sm font-medium">{currentSongLabel}</p>
+          {currentArtistLabel ? (
+            <p className="truncate text-xs text-muted-foreground">
+              {currentArtistLabel}
+            </p>
+          ) : null}
+          {currentAlbumLabel ? (
+            <p className="truncate text-xs text-muted-foreground">
+              {currentAlbumLabel}
+            </p>
+          ) : null}
+        </div>
         <div className="min-w-0">
-          <p className="truncate font-medium">{currentSongLabel}</p>
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={toggleShuffle}
+              aria-pressed={shuffle}
+              aria-label="Shuffle"
+              className={toggleControlClass(shuffle)}
+            >
+              <Shuffle />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={previous}
+              disabled={queueLength === 0}
+              aria-label="Previous song"
+              className="size-12 [&_svg]:size-7"
+            >
+              <SkipBack />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={handleTogglePlay}
+              disabled={!canPlay}
+              aria-label={isPlaying ? "Pause" : "Play"}
+              className="size-12 text-primary [&_svg]:size-7"
+            >
+              {isPlaying ? <Pause /> : <Play />}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={next}
+              disabled={queueLength === 0}
+              aria-label="Next song"
+              className="size-12 [&_svg]:size-7"
+            >
+              <SkipForward />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={toggleRepeat}
+              aria-pressed={repeat}
+              aria-label="Repeat song"
+              className={toggleControlClass(repeat)}
+            >
+              <Repeat />
+            </Button>
+          </div>
+          <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground">
+            <span className="w-10 text-right">{formatTime(displayCurrentTime)}</span>
+            <Slider
+              min={0}
+              max={displayDuration || 0}
+              step={0.25}
+              value={seekValue}
+              onPointerDown={() => setIsSeeking(true)}
+              onPointerUp={() => setIsSeeking(false)}
+              onPointerCancel={() => setIsSeeking(false)}
+              onValueChange={(value) => {
+                const nextValue = value[0]
+                if (typeof nextValue !== "number") {
+                  return
+                }
+                if (nextValue !== displayCurrentTime) {
+                  handleSeek(nextValue)
+                }
+              }}
+              onValueCommit={(value) => {
+                const nextValue = value[0]
+                if (typeof nextValue !== "number") {
+                  return
+                }
+                handleSeek(nextValue)
+              }}
+              className="w-full py-2 -my-2"
+              disabled={!currentSongId || !displayDuration}
+              aria-label="Seek"
+            />
+            <span className="w-10">{formatTime(displayDuration)}</span>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button
-            type="button"
-            variant={shuffle ? "default" : "outline"}
-            size="icon"
-            onClick={toggleShuffle}
-            aria-pressed={shuffle}
-            aria-label="Shuffle"
-            className={shuffle ? "shadow-[0_0_0_2px_rgba(255,255,255,0.35)]" : undefined}
-          >
-            <Shuffle />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={previous}
-            disabled={queueLength === 0}
-            aria-label="Previous song"
-          >
-            <SkipBack />
-          </Button>
-          <Button
-            type="button"
-            variant="default"
-            size="icon"
-            onClick={handleTogglePlay}
-            disabled={!canPlay}
-            aria-label={isPlaying ? "Pause" : "Play"}
-          >
-            {isPlaying ? <Pause /> : <Play />}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={next}
-            disabled={queueLength === 0}
-            aria-label="Next song"
-          >
-            <SkipForward />
-          </Button>
-          <Button
-            type="button"
-            variant={repeat ? "default" : "outline"}
-            size="icon"
-            onClick={toggleRepeat}
-            aria-pressed={repeat}
-            aria-label="Repeat song"
-            className={repeat ? "shadow-[0_0_0_2px_rgba(255,255,255,0.35)]" : undefined}
-          >
-            <Repeat />
-          </Button>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-          <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
-            <Gauge className="size-4" />
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <Gauge className="size-3.5" />
             <Slider
               min={0.5}
               max={1.5}
               step={0.01}
               value={playbackRateValue}
               onValueChange={handlePlaybackRateChange}
-              className="w-24"
+              className="w-20"
               aria-label="Playback speed"
             />
             <span className="w-8 text-right">
               {Math.round(playbackRate * 100)}%
             </span>
           </label>
-          <label className="flex items-center gap-2 text-[10px] text-muted-foreground">
-            <Volume2 className="size-4" />
+          <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <Volume2 className="size-3.5" />
             <Slider
               min={0}
               max={1}
               step={0.01}
               value={volumeValue}
               onValueChange={handleVolumeChange}
-              className="w-24"
+              className="w-20"
               aria-label="Volume"
             />
             <span className="w-8 text-right">
@@ -360,38 +417,6 @@ export function PlaybackControls() {
             </span>
           </label>
         </div>
-      </div>
-      <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
-        <span className="w-10 text-right">{formatTime(displayCurrentTime)}</span>
-        <Slider
-          min={0}
-          max={displayDuration || 0}
-          step={0.25}
-          value={seekValue}
-          onPointerDown={() => setIsSeeking(true)}
-          onPointerUp={() => setIsSeeking(false)}
-          onPointerCancel={() => setIsSeeking(false)}
-          onValueChange={(value) => {
-            const nextValue = value[0]
-            if (typeof nextValue !== "number") {
-              return
-            }
-            if (nextValue !== displayCurrentTime) {
-              handleSeek(nextValue)
-            }
-          }}
-          onValueCommit={(value) => {
-            const nextValue = value[0]
-            if (typeof nextValue !== "number") {
-              return
-            }
-            handleSeek(nextValue)
-          }}
-          className="w-full py-2 -my-2"
-          disabled={!currentSongId || !displayDuration}
-          aria-label="Seek"
-        />
-        <span className="w-10">{formatTime(displayDuration)}</span>
       </div>
       <audio
         ref={audioRef}

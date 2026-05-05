@@ -4,6 +4,7 @@ import {
   ArrowUp,
   ArrowUpDown,
   MoreVertical,
+  Search,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -220,7 +221,7 @@ function SongRow({ row, onSelect }: SongRowProps) {
   return (
     <TableRow
       data-state={isSelected ? "selected" : undefined}
-      className="h-8 cursor-pointer select-none focus-visible:outline-none"
+      className="h-6 cursor-pointer select-none focus-visible:outline-none"
       onClick={() => onSelect(row.original)}
     >
       {row.getVisibleCells().map((cell) => {
@@ -408,9 +409,7 @@ export function PlaylistSongsView({
   const removeFromPlaylistMutation = useRemoveTrackFromPlaylistMutation()
   const deleteSongMutation = useDeleteSongMutation()
 
-  const isSortablePlaylist =
-    activePlaylist.type === "custom" ||
-    (activePlaylist.type === "smart" && activePlaylist.id === "all")
+  const isSortablePlaylist = activePlaylist.type === "custom"
   const normalizedSearch = searchQuery.trim().toLowerCase()
   const hasSearch = normalizedSearch.length > 0
   const handleAddToPlaylist = useCallback(
@@ -626,7 +625,7 @@ export function PlaylistSongsView({
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollElement,
-    estimateSize: () => 30,
+    estimateSize: () => 24,
     overscan: 30,
     getItemKey: getRowKey,
     enabled: Boolean(scrollElement),
@@ -666,37 +665,33 @@ export function PlaylistSongsView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex min-h-0 flex-1 flex-col gap-6 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div>
-              <h1 className="text-2xl font-bold">{activePlaylist.name}</h1>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="text-sm text-muted-foreground">
-              {isLoading
-                ? "Loading songs..."
-                : hasSearch
-                  ? `${visibleSongs.length} of ${songs.length} songs`
-                  : `${songs.length} songs`}
-            </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pt-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="relative w-[40%] min-w-64">
+            <Search className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
             <Input
               type="search"
               placeholder="Search playlist"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="w-56 sm:w-64"
+              className="w-full pl-8"
               aria-label="Search playlist"
             />
           </div>
+          <div className="justify-self-end text-xs text-muted-foreground">
+            {isLoading
+              ? "Loading songs..."
+              : hasSearch
+                ? `${visibleSongs.length} of ${songs.length} songs`
+                : `${songs.length} songs`}
+          </div>
         </div>
         {isLoading ? (
-          <div className="text-muted-foreground rounded-lg border p-6">
+          <div className="text-muted-foreground rounded-sm border p-4 text-xs">
             Loading your songs...
           </div>
         ) : isError ? (
-          <div className="border-destructive/40 bg-destructive/5 rounded-lg border p-6">
+          <div className="border-destructive/40 bg-destructive/5 rounded-sm border p-4">
             <p className="text-destructive text-sm">
               {error instanceof Error ? error.message : "Failed to load songs."}
             </p>
@@ -705,7 +700,7 @@ export function PlaylistSongsView({
             </Button>
           </div>
         ) : songs.length === 0 ? (
-          <div className="text-muted-foreground rounded-lg border p-6">
+          <div className="text-muted-foreground rounded-sm border p-4 text-xs">
             {activePlaylist.type === "custom"
               ? "This playlist is empty. Add songs to get started."
               : activePlaylist.type === "smart" && activePlaylist.days
@@ -713,19 +708,19 @@ export function PlaylistSongsView({
                 : "No songs yet. Upload a track to get started."}
           </div>
         ) : visibleSongs.length === 0 ? (
-          <div className="text-muted-foreground rounded-lg border p-6">
+          <div className="text-muted-foreground rounded-sm border p-4 text-xs">
             No songs match "{searchQuery.trim()}".
           </div>
         ) : (
-          <div className="rounded-lg border [overflow-anchor:none] flex min-h-0 flex-1 flex-col">
+          <div className="[overflow-anchor:none] flex min-h-0 flex-1 flex-col bg-card/35">
             <div
               ref={setTableContainerRef}
               className="relative flex-1 overflow-auto"
             >
               <Table className="table-fixed" containerClassName="overflow-visible">
-                <TableHeader className="sticky top-0 z-10 bg-card">
+                <TableHeader className="sticky top-0 z-10 bg-background/95">
                   {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="bg-card">
+                    <TableRow key={headerGroup.id} className="bg-background/95 hover:bg-background/95">
                       {headerGroup.headers.map((header) => {
                         const meta = header.column.columnDef.meta as
                           | SongsColumnMeta
