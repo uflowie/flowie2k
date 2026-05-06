@@ -409,7 +409,6 @@ export function PlaylistSongsView({
   const removeFromPlaylistMutation = useRemoveTrackFromPlaylistMutation()
   const deleteSongMutation = useDeleteSongMutation()
 
-  const isSortablePlaylist = activePlaylist.type === "custom"
   const normalizedSearch = searchQuery.trim().toLowerCase()
   const hasSearch = normalizedSearch.length > 0
   const handleAddToPlaylist = useCallback(
@@ -432,10 +431,6 @@ export function PlaylistSongsView({
   )
 
   const handleSort = (key: SortKey) => {
-    if (!isSortablePlaylist) {
-      return
-    }
-
     const defaultDirection: Record<SortKey, "asc" | "desc"> = {
       title: "asc",
       artist: "asc",
@@ -461,7 +456,7 @@ export function PlaylistSongsView({
   }
 
   const activeSortedSongs = useMemo(() => {
-    if (!isSortablePlaylist || !tableSort) {
+    if (!tableSort) {
       return songs
     }
     return applyTableSort(
@@ -471,7 +466,6 @@ export function PlaylistSongsView({
     )
   }, [
     songs,
-    isSortablePlaylist,
     tableSort,
     activePlaylist,
   ])
@@ -757,7 +751,7 @@ export function PlaylistSongsView({
                             className={meta?.headerClassName}
                             aria-sort={ariaSort}
                           >
-                            {sortKey && isSortablePlaylist ? (
+                            {sortKey ? (
                               <Button
                                 type="button"
                                 variant="ghost"
