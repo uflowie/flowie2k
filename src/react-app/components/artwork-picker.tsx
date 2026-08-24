@@ -1,8 +1,10 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Images } from "lucide-react"
 
 import {
+  APPEARANCE_CHANGE_EVENT,
   ARTWORK_OPTIONS,
+  notifyAppearanceChange,
   readStoredArtwork,
   setArtwork,
   storeArtwork,
@@ -13,10 +15,22 @@ export function ArtworkPicker() {
   const [selectedArtwork, setSelectedArtwork] = useState(readStoredArtwork)
   const hasArtwork = ARTWORK_OPTIONS.length > 0
 
+  useEffect(() => {
+    const handleAppearanceChange = () =>
+      setSelectedArtwork(readStoredArtwork())
+    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange)
+    return () =>
+      window.removeEventListener(
+        APPEARANCE_CHANGE_EVENT,
+        handleAppearanceChange,
+      )
+  }, [])
+
   const handleArtworkChange = (artwork: ArtworkId) => {
     setSelectedArtwork(artwork)
     setArtwork(artwork)
     storeArtwork(artwork)
+    notifyAppearanceChange("customization")
   }
 
   return (

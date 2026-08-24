@@ -1,10 +1,12 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Columns3 } from "lucide-react"
 
 import { Slider } from "@/components/ui/slider"
 import {
+  APPEARANCE_CHANGE_EVENT,
   MAX_PLAYLIST_WIDTH,
   MIN_PLAYLIST_WIDTH,
+  notifyAppearanceChange,
   readStoredPlaylistWidth,
   setPlaylistWidth,
   storePlaylistWidth,
@@ -12,6 +14,17 @@ import {
 
 export function PlaylistWidthSlider() {
   const [width, setWidth] = useState(readStoredPlaylistWidth)
+
+  useEffect(() => {
+    const handleAppearanceChange = () =>
+      setWidth(readStoredPlaylistWidth())
+    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange)
+    return () =>
+      window.removeEventListener(
+        APPEARANCE_CHANGE_EVENT,
+        handleAppearanceChange,
+      )
+  }, [])
 
   return (
     <div className="space-y-2 rounded-sm p-1.5 text-xs hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
@@ -37,6 +50,7 @@ export function PlaylistWidthSlider() {
           const nextWidth = values[0]
           if (typeof nextWidth === "number") {
             storePlaylistWidth(nextWidth)
+            notifyAppearanceChange("customization")
           }
         }}
         aria-label="Playlist width"

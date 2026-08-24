@@ -1,11 +1,13 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Sparkles } from "lucide-react"
 
 import { SidebarMenuItem } from "@/components/ui/sidebar"
 import {
+  APPEARANCE_CHANGE_EVENT,
   readStoredArtworkColor,
   readStoredBackgroundColor,
   readStoredFontColor,
+  notifyAppearanceChange,
   setArtworkColor,
   setBackgroundColor,
   setFontColor,
@@ -127,10 +129,21 @@ const applyAndStoreColors = (colors: AppearanceColors) => {
   storeBackgroundColor(colors.background)
   storeFontColor(colors.font)
   storeArtworkColor(colors.artwork)
+  notifyAppearanceChange("customization")
 }
 
 export function AppearanceColorControls() {
   const [colors, setColors] = useState(readStoredColors)
+
+  useEffect(() => {
+    const handleAppearanceChange = () => setColors(readStoredColors())
+    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange)
+    return () =>
+      window.removeEventListener(
+        APPEARANCE_CHANGE_EVENT,
+        handleAppearanceChange,
+      )
+  }, [])
 
   const updateColor = (
     colorName: keyof AppearanceColors,
@@ -151,6 +164,7 @@ export function AppearanceColorControls() {
       setArtworkColor(color)
       storeArtworkColor(color)
     }
+    notifyAppearanceChange("customization")
   }
 
   const handleFeelingLucky = () => {

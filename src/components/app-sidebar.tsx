@@ -15,6 +15,7 @@ import { Link, useNavigate } from "@tanstack/react-router"
 import { Input } from "@/components/ui/input"
 import {
   CalendarRange,
+  ChevronDown,
   Flame,
   FolderUp,
   ListMusic,
@@ -45,6 +46,7 @@ import { PlaylistWidthSlider } from "@/react-app/components/playlist-width-slide
 import { SidebarWidthSlider } from "@/react-app/components/sidebar-width-slider"
 import { ArtworkPicker } from "@/react-app/components/artwork-picker"
 import { ArtworkPositionControls } from "@/react-app/components/artwork-position-controls"
+import { AppearancePresets } from "@/react-app/components/appearance-presets"
 import { toast } from "sonner"
 
 const SMART_PLAYLIST_ICONS: Record<SmartPlaylistId, LucideIcon> = {
@@ -57,6 +59,7 @@ const SMART_PLAYLIST_ICONS: Record<SmartPlaylistId, LucideIcon> = {
 export function AppSidebar() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const folderInputRef = useRef<HTMLInputElement | null>(null)
+  const [customizationOpen, setCustomizationOpen] = useState(true)
   const queryClient = useQueryClient()
   const activePlaylist = usePlaybackStore((state) => state.activePlaylist)
   const setActivePlaylist = usePlaybackStore((state) => state.setActivePlaylist)
@@ -258,24 +261,41 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Customization</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <AppearanceColorControls />
-              <SidebarMenuItem>
-                <ArtworkPicker />
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <ArtworkPositionControls />
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarWidthSlider />
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <PlaylistWidthSlider />
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
+          <SidebarGroupLabel asChild>
+            <button
+              type="button"
+              aria-controls="customization-content"
+              aria-expanded={customizationOpen}
+              onClick={() => setCustomizationOpen((open) => !open)}
+              className="w-full justify-between text-left"
+            >
+              <span>Customization</span>
+              <ChevronDown
+                aria-hidden="true"
+                className={`transition-transform ${customizationOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+          </SidebarGroupLabel>
+          {customizationOpen ? (
+            <SidebarGroupContent id="customization-content">
+              <SidebarMenu>
+                <AppearancePresets />
+                <AppearanceColorControls />
+                <SidebarMenuItem>
+                  <ArtworkPicker />
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <ArtworkPositionControls />
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarWidthSlider />
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <PlaylistWidthSlider />
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          ) : null}
         </SidebarGroup>
 
         <SidebarGroup>

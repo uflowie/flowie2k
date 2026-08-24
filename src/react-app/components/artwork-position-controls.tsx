@@ -1,12 +1,14 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { MoveHorizontal, MoveVertical, Scaling } from "lucide-react"
 
 import { Slider } from "@/components/ui/slider"
 import {
+  APPEARANCE_CHANGE_EVENT,
   MAX_ARTWORK_POSITION,
   MAX_ARTWORK_SIZE,
   MIN_ARTWORK_POSITION,
   MIN_ARTWORK_SIZE,
+  notifyAppearanceChange,
   readStoredArtworkPositionX,
   readStoredArtworkPositionY,
   readStoredArtworkSize,
@@ -25,6 +27,20 @@ export function ArtworkPositionControls() {
   const [size, setSize] = useState(readStoredArtworkSize)
   const [positionX, setPositionX] = useState(readStoredArtworkPositionX)
   const [positionY, setPositionY] = useState(readStoredArtworkPositionY)
+
+  useEffect(() => {
+    const handleAppearanceChange = () => {
+      setSize(readStoredArtworkSize())
+      setPositionX(readStoredArtworkPositionX())
+      setPositionY(readStoredArtworkPositionY())
+    }
+    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange)
+    return () =>
+      window.removeEventListener(
+        APPEARANCE_CHANGE_EVENT,
+        handleAppearanceChange,
+      )
+  }, [])
 
   return (
     <div className="space-y-3 rounded-sm p-1.5 text-xs hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
@@ -51,6 +67,7 @@ export function ArtworkPositionControls() {
             const nextSize = values[0]
             if (typeof nextSize === "number") {
               storeArtworkSize(nextSize)
+              notifyAppearanceChange("customization")
             }
           }}
           aria-label="Artwork size"
@@ -82,6 +99,7 @@ export function ArtworkPositionControls() {
             const nextPosition = values[0]
             if (typeof nextPosition === "number") {
               storeArtworkPositionX(nextPosition)
+              notifyAppearanceChange("customization")
             }
           }}
           aria-label="Artwork horizontal position"
@@ -113,6 +131,7 @@ export function ArtworkPositionControls() {
             const nextPosition = values[0]
             if (typeof nextPosition === "number") {
               storeArtworkPositionY(nextPosition)
+              notifyAppearanceChange("customization")
             }
           }}
           aria-label="Artwork vertical position"

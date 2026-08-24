@@ -8,6 +8,10 @@ const ARTWORK_X_STORAGE_KEY = "appearance.artworkPositionX"
 const ARTWORK_Y_STORAGE_KEY = "appearance.artworkPositionY"
 const PLAYLIST_WIDTH_STORAGE_KEY = "appearance.playlistWidth"
 const SIDEBAR_WIDTH_STORAGE_KEY = "appearance.sidebarWidth"
+const APPEARANCE_PRESETS_STORAGE_KEY = "appearance.presets"
+export const APPEARANCE_CHANGE_EVENT = "flowie2k:appearance-change"
+const APPEARANCE_PRESETS_VERSION = 1
+export type AppearanceChangeSource = "customization" | "preset"
 export const DEFAULT_BACKGROUND = "#111b16"
 export const DEFAULT_FONT_COLOR = "#d2d8cf"
 export const DEFAULT_ARTWORK_COLOR = "#6f8f79"
@@ -58,6 +62,22 @@ export const ARTWORK_OPTIONS = Object.entries(artworkAssets)
 
 export type ArtworkId = string
 export const DEFAULT_ARTWORK: ArtworkId = ARTWORK_OPTIONS[0]?.id ?? ""
+
+export type AppearancePresetValues = {
+  backgroundColor: string
+  fontColor: string
+  artworkColor: string
+  artwork: ArtworkId
+  artworkSize: number
+  artworkPositionX: number
+  artworkPositionY: number
+  playlistWidth: number
+  sidebarWidth: number
+}
+
+export type AppearancePreset = AppearancePresetValues & {
+  name: string
+}
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
@@ -290,6 +310,135 @@ export const storePlaylistWidth = (width: number) => {
 
 export const storeSidebarWidth = (width: number) => {
   window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width))
+}
+
+export const notifyAppearanceChange = (source: AppearanceChangeSource) => {
+  window.dispatchEvent(
+    new CustomEvent(APPEARANCE_CHANGE_EVENT, { detail: { source } }),
+  )
+}
+
+export const getCurrentAppearance = (): AppearancePresetValues => ({
+  backgroundColor: readStoredBackgroundColor(),
+  fontColor: readStoredFontColor(),
+  artworkColor: readStoredArtworkColor(),
+  artwork: readStoredArtwork(),
+  artworkSize: readStoredArtworkSize(),
+  artworkPositionX: readStoredArtworkPositionX(),
+  artworkPositionY: readStoredArtworkPositionY(),
+  playlistWidth: readStoredPlaylistWidth(),
+  sidebarWidth: readStoredSidebarWidth(),
+})
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+
+const normalizeAppearancePreset = (value: unknown): AppearancePreset | null => {
+  if (!isRecord(value) || typeof value.name !== "string") {
+    return null
+  }
+
+  const name = value.name.trim()
+  const artwork = typeof value.artwork === "string" ? value.artwork : ""
+  if (
+    !name ||
+    typeof value.backgroundColor !== "string" ||
+    typeof value.fontColor !== "string" ||
+    typeof value.artworkColor !== "string" ||
+    (artwork && !ARTWORK_OPTIONS.some((option) => option.id === artwork)) ||
+    typeof value.artworkSize !== "number" ||
+    typeof value.artworkPositionX !== "number" ||
+    typeof value.artworkPositionY !== "number" ||
+    typeof value.playlistWidth !== "number" ||
+    typeof value.sidebarWidth !== "number"
+  ) {
+    return null
+  }
+
+  return {
+    name,
+    backgroundColor: value.backgroundColor,
+    fontColor: value.fontColor,
+    artworkColor: value.artworkColor,
+    artwork,
+    artworkSize: clamp(value.artworkSize, MIN_ARTWORK_SIZE, MAX_ARTWORK_SIZE),
+    artworkPositionX: clamp(
+      value.artworkPositionX,
+      MIN_ARTWORK_POSITION,
+      MAX_ARTWORK_POSITION,
+    ),
+    artworkPositionY: clamp(
+      value.artworkPositionY,
+      MIN_ARTWORK_POSITION,
+      MAX_ARTWORK_POSITION,
+    ),
+    playlistWidth: clamp(
+      value.playlistWidth,
+      MIN_PLAYLIST_WIDTH,
+      MAX_PLAYLIST_WIDTH,
+    ),
+    sidebarWidth: clamp(
+      value.sidebarWidth,
+      MIN_SIDEBAR_WIDTH,
+      MAX_SIDEBAR_WIDTH,
+    ),
+  }
+}
+
+export const readAppearancePresets = (): AppearancePreset[] => {
+  try {
+    const storedValue = window.localStorage.getItem(APPEARANCE_PRESETS_STORAGE_KEY)
+    if (!storedValue) {
+      return []
+    }
+
+    const parsed: unknown = JSON.parse(storedValue)
+    if (!isRecord(parsed) || parsed.version !== APPEARANCE_PRESETS_VERSION) {
+      return []
+    }
+
+    if (!Array.isArray(parsed.presets)) {
+      return []
+    }
+
+    return parsed.presets.flatMap((preset) => {
+      const normalized = normalizeAppearancePreset(preset)
+      return normalized ? [normalized] : []
+    })
+  } catch {
+    return []
+  }
+}
+
+export const storeAppearancePresets = (presets: AppearancePreset[]) => {
+  window.localStorage.setItem(
+    APPEARANCE_PRESETS_STORAGE_KEY,
+    JSON.stringify({ version: APPEARANCE_PRESETS_VERSION, presets }),
+  )
+}
+
+export const applyAppearancePreset = (preset: AppearancePresetValues) => {
+  setBackgroundColor(preset.backgroundColor)
+  setFontColor(preset.fontColor)
+  setArtworkColor(preset.artworkColor)
+  setArtwork(preset.artwork)
+  setArtworkSize(preset.artworkSize)
+  setArtworkPositionX(preset.artworkPositionX)
+  setArtworkPositionY(preset.artworkPositionY)
+  setPlaylistWidth(preset.playlistWidth)
+  setSidebarWidth(preset.sidebarWidth)
+
+  storeBackgroundColor(preset.backgroundColor)
+  storeFontColor(preset.fontColor)
+  storeArtworkColor(preset.artworkColor)
+  storeArtwork(preset.artwork)
+  storeArtworkSize(preset.artworkSize)
+  storeArtworkPositionX(preset.artworkPositionX)
+  storeArtworkPositionY(preset.artworkPositionY)
+  storePlaylistWidth(preset.playlistWidth)
+  storeSidebarWidth(preset.sidebarWidth)
+
+  notifyAppearanceChange("preset")
 }
 
 export const clearStoredBackgroundColor = () => {
