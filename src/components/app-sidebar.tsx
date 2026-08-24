@@ -44,7 +44,7 @@ import {
   BackgroundColorPicker,
   FontColorPicker,
 } from "@/react-app/components/background-color-picker"
-import { useStoredAppearance } from "@/react-app/lib/appearance"
+import { PlaylistWidthSlider } from "@/react-app/components/playlist-width-slider"
 import { toast } from "sonner"
 
 const SMART_PLAYLIST_ICONS: Record<SmartPlaylistId, LucideIcon> = {
@@ -55,8 +55,6 @@ const SMART_PLAYLIST_ICONS: Record<SmartPlaylistId, LucideIcon> = {
 }
 
 export function AppSidebar() {
-  useStoredAppearance()
-
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const folderInputRef = useRef<HTMLInputElement | null>(null)
   const queryClient = useQueryClient()
@@ -268,6 +266,9 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <FontColorPicker />
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <PlaylistWidthSlider />
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>

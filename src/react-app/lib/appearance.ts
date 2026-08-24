@@ -1,10 +1,12 @@
-import { useEffect } from "react"
-
 const BACKGROUND_STORAGE_KEY = "appearance.backgroundColor"
 const BACKGROUND_LEGACY_STORAGE_KEY = "debug.backgroundColor"
 const FONT_STORAGE_KEY = "appearance.fontColor"
+const PLAYLIST_WIDTH_STORAGE_KEY = "appearance.playlistWidth"
 export const DEFAULT_BACKGROUND = "#111b16"
 export const DEFAULT_FONT_COLOR = "#d2d8cf"
+export const DEFAULT_PLAYLIST_WIDTH = 100
+export const MIN_PLAYLIST_WIDTH = 0
+export const MAX_PLAYLIST_WIDTH = 100
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
@@ -44,6 +46,18 @@ export const setFontColor = (color: string) => {
   root.style.setProperty("--sidebar-accent-foreground", color)
 }
 
+export const setPlaylistWidth = (width: number) => {
+  const clampedWidth = clamp(
+    width,
+    MIN_PLAYLIST_WIDTH,
+    MAX_PLAYLIST_WIDTH,
+  )
+  document.documentElement.style.setProperty(
+    "--playlist-pane-width",
+    `${clampedWidth}%`,
+  )
+}
+
 export const clearBackgroundColor = () => {
   const root = document.documentElement
   root.style.removeProperty("--background")
@@ -70,6 +84,14 @@ export const readStoredFontColor = () => {
   return window.localStorage.getItem(FONT_STORAGE_KEY) ?? DEFAULT_FONT_COLOR
 }
 
+export const readStoredPlaylistWidth = () => {
+  const storedValue = window.localStorage.getItem(PLAYLIST_WIDTH_STORAGE_KEY)
+  const storedWidth = Number(storedValue)
+  return storedValue !== null && Number.isFinite(storedWidth)
+    ? clamp(storedWidth, MIN_PLAYLIST_WIDTH, MAX_PLAYLIST_WIDTH)
+    : DEFAULT_PLAYLIST_WIDTH
+}
+
 export const storeBackgroundColor = (color: string) => {
   window.localStorage.setItem(BACKGROUND_STORAGE_KEY, color)
 }
@@ -78,14 +100,17 @@ export const storeFontColor = (color: string) => {
   window.localStorage.setItem(FONT_STORAGE_KEY, color)
 }
 
+export const storePlaylistWidth = (width: number) => {
+  window.localStorage.setItem(PLAYLIST_WIDTH_STORAGE_KEY, String(width))
+}
+
 export const clearStoredBackgroundColor = () => {
   window.localStorage.removeItem(BACKGROUND_STORAGE_KEY)
   window.localStorage.removeItem(BACKGROUND_LEGACY_STORAGE_KEY)
 }
 
-export function useStoredAppearance() {
-  useEffect(() => {
-    setBackgroundColor(readStoredBackgroundColor())
-    setFontColor(readStoredFontColor())
-  }, [])
+export const applyStoredAppearance = () => {
+  setBackgroundColor(readStoredBackgroundColor())
+  setFontColor(readStoredFontColor())
+  setPlaylistWidth(readStoredPlaylistWidth())
 }

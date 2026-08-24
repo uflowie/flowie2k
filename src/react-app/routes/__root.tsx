@@ -10,7 +10,7 @@ const RootLayout = () => (
       <SidebarProvider className="min-h-0 flex-1">
         <AppSidebar />
         <div className="flex h-full w-full flex-1 flex-col overflow-hidden">
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="mx-auto flex min-h-0 w-full flex-1 flex-col md:w-[var(--playlist-pane-width,97%)]">
             <Outlet />
           </div>
         </div>
