@@ -40,11 +40,7 @@ import {
   useUploadSongMutation,
 } from "@/react-app/lib/queries"
 import { usePlaybackStore } from "@/react-app/lib/playback-store"
-import {
-  ArtworkColorPicker,
-  BackgroundColorPicker,
-  FontColorPicker,
-} from "@/react-app/components/background-color-picker"
+import { AppearanceColorControls } from "@/react-app/components/background-color-picker"
 import { PlaylistWidthSlider } from "@/react-app/components/playlist-width-slider"
 import { SidebarWidthSlider } from "@/react-app/components/sidebar-width-slider"
 import { ArtworkPicker } from "@/react-app/components/artwork-picker"
@@ -265,15 +261,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Customization</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <BackgroundColorPicker />
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <FontColorPicker />
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <ArtworkColorPicker />
-              </SidebarMenuItem>
+              <AppearanceColorControls />
               <SidebarMenuItem>
                 <ArtworkPicker />
               </SidebarMenuItem>
