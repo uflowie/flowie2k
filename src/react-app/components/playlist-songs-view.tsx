@@ -470,10 +470,6 @@ export function PlaylistSongsView({
   }, [])
   const tableSort = tableSorts[playlistKey] ?? null
 
-  useEffect(() => {
-    storeTableSorts(tableSorts)
-  }, [tableSorts])
-
   const {
     data: songs = [],
     isLoading,
@@ -516,10 +512,12 @@ export function PlaylistSongsView({
             direction: current.direction === "asc" ? "desc" : "asc",
         }
 
-    setTableSorts((previous) => ({
-      ...previous,
+    const nextTableSorts = {
+      ...tableSorts,
       [playlistKey]: nextSort,
-    }))
+    }
+    setTableSorts(nextTableSorts)
+    storeTableSorts(nextTableSorts)
   }
 
   const activeSortedSongs = useMemo(() => {
