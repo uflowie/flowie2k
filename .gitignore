@@ -38,3 +38,7 @@ playwright-report/
 test-results/
 
 .tanstack/
+
+# Local artwork library
+src/react-app/assets/artwork/*
+!src/react-app/assets/artwork/README.md

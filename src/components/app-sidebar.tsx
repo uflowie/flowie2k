@@ -41,10 +41,13 @@ import {
 } from "@/react-app/lib/queries"
 import { usePlaybackStore } from "@/react-app/lib/playback-store"
 import {
+  ArtworkColorPicker,
   BackgroundColorPicker,
   FontColorPicker,
 } from "@/react-app/components/background-color-picker"
 import { PlaylistWidthSlider } from "@/react-app/components/playlist-width-slider"
+import { ArtworkPicker } from "@/react-app/components/artwork-picker"
+import { ArtworkPositionControls } from "@/react-app/components/artwork-position-controls"
 import { toast } from "sonner"
 
 const SMART_PLAYLIST_ICONS: Record<SmartPlaylistId, LucideIcon> = {
@@ -266,6 +269,15 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <FontColorPicker />
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <ArtworkColorPicker />
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <ArtworkPicker />
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <ArtworkPositionControls />
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <PlaylistWidthSlider />

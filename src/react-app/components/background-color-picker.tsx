@@ -1,10 +1,13 @@
 import { useState } from "react"
 
 import {
+  readStoredArtworkColor,
   readStoredBackgroundColor,
   readStoredFontColor,
+  setArtworkColor,
   setBackgroundColor,
   setFontColor,
+  storeArtworkColor,
   storeBackgroundColor,
   storeFontColor,
 } from "@/react-app/lib/appearance"
@@ -67,6 +70,20 @@ export function FontColorPicker() {
       onColorChange={(color) => {
         storeFontColor(color)
         setFontColor(color)
+      }}
+    />
+  )
+}
+
+export function ArtworkColorPicker() {
+  return (
+    <ColorPickerRow
+      id="artwork-color"
+      label="Artwork Color"
+      initialColor={readStoredArtworkColor}
+      onColorChange={(color) => {
+        storeArtworkColor(color)
+        setArtworkColor(color)
       }}
     />
   )
