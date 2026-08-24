@@ -7,12 +7,16 @@ const ARTWORK_SIZE_STORAGE_KEY = "appearance.artworkSize"
 const ARTWORK_X_STORAGE_KEY = "appearance.artworkPositionX"
 const ARTWORK_Y_STORAGE_KEY = "appearance.artworkPositionY"
 const PLAYLIST_WIDTH_STORAGE_KEY = "appearance.playlistWidth"
+const SIDEBAR_WIDTH_STORAGE_KEY = "appearance.sidebarWidth"
 export const DEFAULT_BACKGROUND = "#111b16"
 export const DEFAULT_FONT_COLOR = "#d2d8cf"
 export const DEFAULT_ARTWORK_COLOR = "#6f8f79"
 export const DEFAULT_PLAYLIST_WIDTH = 100
 export const MIN_PLAYLIST_WIDTH = 0
 export const MAX_PLAYLIST_WIDTH = 100
+export const DEFAULT_SIDEBAR_WIDTH = 208
+export const MIN_SIDEBAR_WIDTH = 160
+export const MAX_SIDEBAR_WIDTH = 400
 export const DEFAULT_ARTWORK_POSITION = 0
 export const MIN_ARTWORK_POSITION = -125
 export const MAX_ARTWORK_POSITION = 125
@@ -158,6 +162,18 @@ export const setPlaylistWidth = (width: number) => {
   )
 }
 
+export const setSidebarWidth = (width: number) => {
+  const clampedWidth = clamp(
+    width,
+    MIN_SIDEBAR_WIDTH,
+    MAX_SIDEBAR_WIDTH,
+  )
+  document.documentElement.style.setProperty(
+    "--app-sidebar-width",
+    `${clampedWidth}px`,
+  )
+}
+
 export const clearBackgroundColor = () => {
   const root = document.documentElement
   root.style.removeProperty("--background")
@@ -228,6 +244,14 @@ export const readStoredPlaylistWidth = () => {
     : DEFAULT_PLAYLIST_WIDTH
 }
 
+export const readStoredSidebarWidth = () => {
+  const storedValue = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
+  const storedWidth = Number(storedValue)
+  return storedValue !== null && Number.isFinite(storedWidth)
+    ? clamp(storedWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH)
+    : DEFAULT_SIDEBAR_WIDTH
+}
+
 export const storeBackgroundColor = (color: string) => {
   window.localStorage.setItem(BACKGROUND_STORAGE_KEY, color)
 }
@@ -264,6 +288,10 @@ export const storePlaylistWidth = (width: number) => {
   window.localStorage.setItem(PLAYLIST_WIDTH_STORAGE_KEY, String(width))
 }
 
+export const storeSidebarWidth = (width: number) => {
+  window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width))
+}
+
 export const clearStoredBackgroundColor = () => {
   window.localStorage.removeItem(BACKGROUND_STORAGE_KEY)
   window.localStorage.removeItem(BACKGROUND_LEGACY_STORAGE_KEY)
@@ -278,4 +306,5 @@ export const applyStoredAppearance = () => {
   setArtworkPositionX(readStoredArtworkPositionX())
   setArtworkPositionY(readStoredArtworkPositionY())
   setPlaylistWidth(readStoredPlaylistWidth())
+  setSidebarWidth(readStoredSidebarWidth())
 }

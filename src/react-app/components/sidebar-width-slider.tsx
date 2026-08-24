@@ -1,29 +1,29 @@
 import { useState } from "react"
-import { Columns3 } from "lucide-react"
+import { PanelLeft } from "lucide-react"
 
 import { Slider } from "@/components/ui/slider"
 import {
-  MAX_PLAYLIST_WIDTH,
-  MIN_PLAYLIST_WIDTH,
-  readStoredPlaylistWidth,
-  setPlaylistWidth,
-  storePlaylistWidth,
+  MAX_SIDEBAR_WIDTH,
+  MIN_SIDEBAR_WIDTH,
+  readStoredSidebarWidth,
+  setSidebarWidth,
+  storeSidebarWidth,
 } from "@/react-app/lib/appearance"
 
-export function PlaylistWidthSlider() {
-  const [width, setWidth] = useState(readStoredPlaylistWidth)
+export function SidebarWidthSlider() {
+  const [width, setWidth] = useState(readStoredSidebarWidth)
 
   return (
     <div className="space-y-2 rounded-sm p-1.5 text-xs hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
       <div className="flex items-center gap-2">
-        <Columns3 className="size-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate">Playlist width</span>
-        <output className="w-9 text-right tabular-nums">{width}%</output>
+        <PanelLeft className="size-4 shrink-0" />
+        <span className="min-w-0 flex-1 truncate">Sidebar width</span>
+        <output className="w-11 text-right tabular-nums">{width}px</output>
       </div>
       <Slider
-        min={MIN_PLAYLIST_WIDTH}
-        max={MAX_PLAYLIST_WIDTH}
-        step={1}
+        min={MIN_SIDEBAR_WIDTH}
+        max={MAX_SIDEBAR_WIDTH}
+        step={4}
         value={[width]}
         onValueChange={(values) => {
           const nextWidth = values[0]
@@ -31,15 +31,15 @@ export function PlaylistWidthSlider() {
             return
           }
           setWidth(nextWidth)
-          setPlaylistWidth(nextWidth)
+          setSidebarWidth(nextWidth)
         }}
         onValueCommit={(values) => {
           const nextWidth = values[0]
           if (typeof nextWidth === "number") {
-            storePlaylistWidth(nextWidth)
+            storeSidebarWidth(nextWidth)
           }
         }}
-        aria-label="Playlist width"
+        aria-label="Sidebar width"
       />
     </div>
   )

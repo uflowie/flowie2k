@@ -46,6 +46,7 @@ import {
   FontColorPicker,
 } from "@/react-app/components/background-color-picker"
 import { PlaylistWidthSlider } from "@/react-app/components/playlist-width-slider"
+import { SidebarWidthSlider } from "@/react-app/components/sidebar-width-slider"
 import { ArtworkPicker } from "@/react-app/components/artwork-picker"
 import { ArtworkPositionControls } from "@/react-app/components/artwork-position-controls"
 import { toast } from "sonner"
@@ -278,6 +279,9 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <ArtworkPositionControls />
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarWidthSlider />
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <PlaylistWidthSlider />
