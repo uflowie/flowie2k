@@ -676,6 +676,13 @@ export function PlaylistSongsView({
             {activePlaylist.name}
           </h1>
           <div className="flex min-w-0 shrink-0 items-center justify-end gap-3">
+            <div className="shrink-0 text-xs text-muted-foreground">
+              {isLoading
+                ? "Loading songs..."
+                : hasSearch
+                  ? `${visibleSongs.length} of ${songs.length} songs`
+                  : `${songs.length} songs`}
+            </div>
             <div className="relative w-80 max-w-[45vw]">
               <Search className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
               <Input
@@ -686,13 +693,6 @@ export function PlaylistSongsView({
                 className="w-full pl-8"
                 aria-label="Search playlist"
               />
-            </div>
-            <div className="shrink-0 text-xs text-muted-foreground">
-              {isLoading
-                ? "Loading songs..."
-                : hasSearch
-                  ? `${visibleSongs.length} of ${songs.length} songs`
-                  : `${songs.length} songs`}
             </div>
           </div>
         </div>
