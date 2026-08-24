@@ -20,10 +20,11 @@ import {
 } from "@/components/ui/table"
 import {
   flexRender,
-  getCoreRowModel,
+  metaHelper,
+  tableFeatures,
   type ColumnDef,
   type Row,
-  useReactTable,
+  useTable,
 } from "@tanstack/react-table"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import {
@@ -114,6 +115,10 @@ type SongsColumnMeta = {
   headerClassName?: string
   cellClassName?: string
 }
+
+const playlistTableFeatures = tableFeatures({
+  columnMeta: metaHelper<SongsColumnMeta>(),
+})
 
 const getListeningSecondsForPlaylist = (
   song: PlaylistSong,
@@ -206,7 +211,7 @@ type PlaylistSongsViewProps = {
 }
 
 type SongRowProps = {
-  row: Row<PlaylistSong>
+  row: Row<typeof playlistTableFeatures, PlaylistSong>
   onSelect: (song: PlaylistSong) => void
 }
 
@@ -224,8 +229,8 @@ function SongRow({ row, onSelect }: SongRowProps) {
       className="h-6 cursor-pointer select-none focus-visible:outline-none"
       onClick={() => onSelect(row.original)}
     >
-      {row.getVisibleCells().map((cell) => {
-        const meta = cell.column.columnDef.meta as SongsColumnMeta | undefined
+      {row.getAllCells().map((cell) => {
+        const meta = cell.column.columnDef.meta
         return (
           <TableCell key={cell.id} className={meta?.cellClassName}>
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -493,7 +498,9 @@ export function PlaylistSongsView({
       ? `Time listened (${activePlaylist.days}d)`
       : "Time listened"
 
-  const columns = useMemo<ColumnDef<PlaylistSong>[]>(() => {
+  const columns = useMemo<
+    ColumnDef<typeof playlistTableFeatures, PlaylistSong>[]
+  >(() => {
     return [
       {
         id: "title",
@@ -603,11 +610,10 @@ export function PlaylistSongsView({
     handleDeleteSong,
   ])
 
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: playlistTableFeatures,
     data: visibleSongs,
     columns,
-    getCoreRowModel: getCoreRowModel(),
     getRowId: (row) => String(row.id),
   })
 
@@ -616,6 +622,7 @@ export function PlaylistSongsView({
     (index: number) => rows[index]?.id ?? index,
     [rows],
   )
+  // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollElement,
@@ -721,9 +728,7 @@ export function PlaylistSongsView({
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id} className="bg-background/95 hover:bg-background/95">
                       {headerGroup.headers.map((header) => {
-                        const meta = header.column.columnDef.meta as
-                          | SongsColumnMeta
-                          | undefined
+                        const meta = header.column.columnDef.meta
                         const sortKey = meta?.sortKey
                         const isActive = sortKey
                           ? tableSort?.key === sortKey

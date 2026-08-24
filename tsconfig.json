@@ -10,7 +10,6 @@
         "./worker-configuration.d.ts",
         "node"
     ],
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
