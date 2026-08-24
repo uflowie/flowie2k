@@ -57,6 +57,11 @@ export const getStreamUrl = (id: number) =>
     .$url({ param: { id: encodeParam(id) } })
     .toString()
 
+export const getThumbnailUrl = (id: number) =>
+  honoClient.api.songs[":id"].thumbnail
+    .$url({ param: { id: encodeParam(id) } })
+    .toString()
+
 const playlistsQueryOptions = () => ({
   queryKey: LIBRARY_QUERY_KEYS.playlists,
   queryFn: () => parseResponse(honoClient.api.playlists.$get()),

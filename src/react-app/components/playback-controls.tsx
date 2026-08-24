@@ -14,7 +14,11 @@ import { useShallow } from "zustand/react/shallow"
 
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
-import { getStreamUrl, useSongsQuery } from "@/react-app/lib/queries"
+import {
+  getStreamUrl,
+  getThumbnailUrl,
+  useSongsQuery,
+} from "@/react-app/lib/queries"
 import { usePlaybackStore } from "@/react-app/lib/playback-store"
 import { getSongTitle } from "@/react-app/lib/songs"
 
@@ -39,6 +43,27 @@ const formatTime = (value?: number | null) => {
   const minutes = Math.floor(rounded / 60)
   const remaining = rounded % 60
   return `${minutes}:${remaining.toString().padStart(2, "0")}`
+}
+
+const updateMediaSessionPosition = (audio: HTMLAudioElement) => {
+  if (
+    !("mediaSession" in navigator) ||
+    !("setPositionState" in navigator.mediaSession) ||
+    !Number.isFinite(audio.duration) ||
+    audio.duration <= 0
+  ) {
+    return
+  }
+
+  try {
+    navigator.mediaSession.setPositionState({
+      duration: audio.duration,
+      playbackRate: audio.playbackRate || 1,
+      position: clamp(audio.currentTime, 0, audio.duration),
+    })
+  } catch {
+    // Some browsers expose Media Session without supporting position state.
+  }
 }
 
 const scheduleStoredValue = (
@@ -143,6 +168,38 @@ export function PlaybackControls() {
   const canPlay = Boolean(currentSongId || activePlaylistSongIds.length)
 
   useEffect(() => {
+    if (!("mediaSession" in navigator)) {
+      return
+    }
+
+    if (!currentSong) {
+      navigator.mediaSession.metadata = null
+      return
+    }
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: getSongTitle(currentSong),
+      ...(currentArtistLabel ? { artist: currentArtistLabel } : {}),
+      ...(currentAlbumLabel ? { album: currentAlbumLabel } : {}),
+      ...(currentSong.thumbnail_path
+        ? { artwork: [{ src: getThumbnailUrl(currentSong.id) }] }
+        : {}),
+    })
+  }, [currentAlbumLabel, currentArtistLabel, currentSong])
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) {
+      return
+    }
+
+    navigator.mediaSession.playbackState = currentSongId
+      ? isPlaying
+        ? "playing"
+        : "paused"
+      : "none"
+  }, [currentSongId, isPlaying])
+
+  useEffect(() => {
     const audio = audioRef.current
     if (!audio) {
       return
@@ -208,6 +265,8 @@ export function PlaybackControls() {
     if (typeof audioElement.webkitPreservesPitch === "boolean") {
       audioElement.webkitPreservesPitch = false
     }
+
+    updateMediaSessionPosition(audio)
   }, [playbackRate])
 
   const handleTogglePlay = useCallback(() => {
@@ -227,9 +286,63 @@ export function PlaybackControls() {
       const nextTime = clamp(value, 0, duration || audio.duration || 0)
       audio.currentTime = nextTime
       setCurrentTime(nextTime)
+      updateMediaSessionPosition(audio)
     },
     [duration],
   )
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) {
+      return
+    }
+
+    const registeredActions: MediaSessionAction[] = []
+    const registerAction = (
+      action: MediaSessionAction,
+      handler: MediaSessionActionHandler,
+    ) => {
+      try {
+        navigator.mediaSession.setActionHandler(action, handler)
+        registeredActions.push(action)
+      } catch {
+        // Media Session support varies by browser and operating system.
+      }
+    }
+
+    const seekBy = (offset: number) => {
+      const audio = audioRef.current
+      if (!audio) {
+        return
+      }
+      handleSeek(audio.currentTime + offset)
+    }
+
+    registerAction("play", play)
+    registerAction("pause", pause)
+    registerAction("previoustrack", previous)
+    registerAction("nexttrack", next)
+    registerAction("seekbackward", ({ seekOffset }) => {
+      seekBy(-(seekOffset ?? 10))
+    })
+    registerAction("seekforward", ({ seekOffset }) => {
+      seekBy(seekOffset ?? 10)
+    })
+    registerAction("seekto", ({ seekTime }) => {
+      if (typeof seekTime === "number") {
+        handleSeek(seekTime)
+      }
+    })
+
+    return () => {
+      for (const action of registeredActions) {
+        try {
+          navigator.mediaSession.setActionHandler(action, null)
+        } catch {
+          // Ignore cleanup errors from partially supported implementations.
+        }
+      }
+    }
+  }, [handleSeek, next, pause, play, previous])
 
   const handleEnded = useCallback(() => {
     if (repeat && audioRef.current) {
@@ -434,10 +547,12 @@ export function PlaybackControls() {
           }
           const target = event.currentTarget
           setCurrentTime(target.currentTime || 0)
+          updateMediaSessionPosition(target)
         }}
         onLoadedMetadata={(event) => {
           const nextDuration = event.currentTarget.duration
           setDuration(Number.isFinite(nextDuration) ? nextDuration : 0)
+          updateMediaSessionPosition(event.currentTarget)
         }}
         onEnded={handleEnded}
         onPlay={() => setIsPlaying(true)}
