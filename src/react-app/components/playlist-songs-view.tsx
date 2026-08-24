@@ -9,6 +9,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Table,
@@ -229,10 +230,13 @@ function SongRow({ row, onSelect }: SongRowProps) {
       className="h-6 cursor-pointer select-none focus-visible:outline-none"
       onClick={() => onSelect(row.original)}
     >
-      {row.getAllCells().map((cell) => {
+      {row.getAllCells().map((cell, cellIndex) => {
         const meta = cell.column.columnDef.meta
         return (
-          <TableCell key={cell.id} className={meta?.cellClassName}>
+          <TableCell
+            key={cell.id}
+            className={cn(meta?.cellClassName, cellIndex === 0 && "pl-0")}
+          >
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </TableCell>
         )
@@ -727,7 +731,7 @@ export function PlaylistSongsView({
                 <TableHeader className="sticky top-0 z-10 bg-background/95">
                   {table.getHeaderGroups().map((headerGroup) => (
                     <TableRow key={headerGroup.id} className="bg-background/95 hover:bg-background/95">
-                      {headerGroup.headers.map((header) => {
+                      {headerGroup.headers.map((header, headerIndex) => {
                         const meta = header.column.columnDef.meta
                         const sortKey = meta?.sortKey
                         const isActive = sortKey
@@ -753,15 +757,16 @@ export function PlaylistSongsView({
                         return (
                           <TableHead
                             key={header.id}
-                            className={meta?.headerClassName}
+                            className={`p-0 text-[13px] ${meta?.headerClassName ?? ""}`}
                             aria-sort={ariaSort}
                           >
                             {sortKey ? (
-                              <Button
+                              <button
                                 type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="text-foreground h-auto px-0 py-0 text-left font-medium hover:bg-transparent"
+                                className={cn(
+                                  "flex h-7 w-full items-center justify-start gap-1 px-2 py-0 text-left text-[14px] font-medium text-foreground outline-none hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                                  headerIndex === 0 && "pl-0",
+                                )}
                                 onClick={() => handleSort(sortKey)}
                               >
                                 <span>{headerLabel}</span>
@@ -774,7 +779,7 @@ export function PlaylistSongsView({
                                 ) : (
                                   <ArrowUpDown className="size-3 text-muted-foreground/60" />
                                 )}
-                              </Button>
+                              </button>
                             ) : (
                               headerLabel
                             )}
