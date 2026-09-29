@@ -19,7 +19,7 @@ export type TrackRow = {
   last_played: string | null
 }
 
-export type TrackListRow = Omit<TrackRow, "storage_key"> & {
+export type TrackListRow = TrackRow & {
   window_seconds: number
 }
 
@@ -27,6 +27,8 @@ export type TrackDisplayRow = Pick<
   TrackRow,
   | "id"
   | "filename"
+  | "storage_key"
+  | "file_size"
   | "title"
   | "artist"
   | "album"

@@ -130,6 +130,8 @@ const playlists = new Hono<{ Bindings: Bindings }>()
         SELECT
           t.id,
           t.filename,
+          t.storage_key,
+          t.file_size,
           t.title,
           t.artist,
           t.album,

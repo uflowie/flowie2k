@@ -21,6 +21,7 @@ import {
 } from "@/react-app/lib/queries"
 import { usePlaybackStore } from "@/react-app/lib/playback-store"
 import { getSongTitle } from "@/react-app/lib/songs"
+import { cacheAudio, getCachedAudio } from "@/react-app/lib/audio-cache"
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), max)
@@ -144,8 +145,7 @@ export function PlaybackControls() {
   const currentAlbumLabel = currentSong?.album?.trim()
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const lastSongIdRef = useRef<number | null>(null)
-  const lastRestartRef = useRef<number>(restartToken)
+  const sourceReadyRef = useRef(false)
   const volumeStorageTimeoutRef = useRef<number | null>(null)
   const playbackRateStorageTimeoutRef = useRef<number | null>(null)
   const [volume, setVolume] = useState(() =>
@@ -166,6 +166,8 @@ export function PlaybackControls() {
     [displayCurrentTime, displayDuration],
   )
   const canPlay = Boolean(currentSongId || activePlaylistSongIds.length)
+  const storageKey = currentSong?.storage_key
+  const fileSize = currentSong?.file_size
 
   useEffect(() => {
     if (!("mediaSession" in navigator)) {
@@ -205,32 +207,56 @@ export function PlaybackControls() {
       return
     }
 
-    const songChanged = currentSongId !== lastSongIdRef.current
-    const restarted = restartToken !== lastRestartRef.current
+    sourceReadyRef.current = false
+    audio.pause()
+    audio.removeAttribute("src")
+    audio.load()
+    if (!currentSongId || !storageKey || fileSize === undefined) return
 
-    if (!currentSongId) {
-      audio.pause()
-      lastSongIdRef.current = currentSongId
-      lastRestartRef.current = restartToken
-      return
-    }
-
-    if (songChanged || restarted) {
+    const controller = new AbortController()
+    let objectUrl: string | undefined
+    void (async () => {
+      const cached = await getCachedAudio(storageKey, fileSize)
+      if (controller.signal.aborted) return
+      const streamUrl = getStreamUrl(currentSongId)
+      if (cached) objectUrl = URL.createObjectURL(cached)
+      audio.src = objectUrl ?? streamUrl
       audio.load()
-      audio.currentTime = 0
+      sourceReadyRef.current = true
+      if (!cached) void cacheAudio(storageKey, fileSize, streamUrl, controller.signal)
+      if (usePlaybackStore.getState().isPlaying) {
+        try {
+          await audio.play()
+        } catch (error) {
+          if (!controller.signal.aborted && !(error instanceof DOMException && error.name === "AbortError")) {
+            setIsPlaying(false)
+          }
+        }
+      }
+    })()
+
+    return () => {
+      controller.abort()
+      sourceReadyRef.current = false
+      audio.pause()
+      audio.removeAttribute("src")
+      audio.load()
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
+  }, [currentSongId, storageKey, fileSize, restartToken, setIsPlaying])
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !sourceReadyRef.current) return
 
     if (isPlaying) {
-      audio.play().catch(() => {
-        setIsPlaying(false)
+      audio.play().catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) setIsPlaying(false)
       })
     } else {
       audio.pause()
     }
-
-    lastSongIdRef.current = currentSongId
-    lastRestartRef.current = restartToken
-  }, [currentSongId, isPlaying, restartToken, setIsPlaying])
+  }, [isPlaying, setIsPlaying])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -346,10 +372,7 @@ export function PlaybackControls() {
 
   const handleEnded = useCallback(() => {
     if (repeat && audioRef.current) {
-      audioRef.current.currentTime = 0
-      audioRef.current.play().catch(() => {
-        // Autoplay can be blocked; controls allow manual start.
-      })
+      usePlaybackStore.getState().restartCurrentSong()
       return
     }
 
@@ -540,7 +563,6 @@ export function PlaybackControls() {
       <audio
         ref={audioRef}
         preload="metadata"
-        src={currentSongId ? getStreamUrl(currentSongId) : undefined}
         onTimeUpdate={(event) => {
           if (isSeeking) {
             return
@@ -555,8 +577,15 @@ export function PlaybackControls() {
           updateMediaSessionPosition(event.currentTarget)
         }}
         onEnded={handleEnded}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
+        onError={() => {
+          if (sourceReadyRef.current) setIsPlaying(false)
+        }}
+        onPlay={(event) => {
+          if (sourceReadyRef.current && !event.currentTarget.paused) setIsPlaying(true)
+        }}
+        onPause={(event) => {
+          if (sourceReadyRef.current && event.currentTarget.paused) setIsPlaying(false)
+        }}
       />
     </div>
   )

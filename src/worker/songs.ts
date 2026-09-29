@@ -126,7 +126,7 @@ const songs = new Hono<{ Bindings: Bindings }>()
       if (sort === 'popular' && days !== undefined) {
         const { results } = await c.env.MUSIC_DB.prepare(`
         SELECT 
-          t.id, t.filename, t.title, t.artist, t.album, t.genre, t.duration, 
+          t.id, t.filename, t.storage_key, t.title, t.artist, t.album, t.genre, t.duration,
           t.file_size, t.mime_type, t.uploaded_at, t.thumbnail_path,
           t.seconds_listened, t.last_played,
           COALESCE(SUM(le.listened_for_seconds), 0) as window_seconds
@@ -134,7 +134,7 @@ const songs = new Hono<{ Bindings: Bindings }>()
         LEFT JOIN listening_events le 
           ON t.id = le.track_id 
           AND le.started_at >= datetime('now', ?)
-        GROUP BY t.id, t.filename, t.title, t.artist, t.album, t.genre, t.duration, 
+        GROUP BY t.id, t.filename, t.storage_key, t.title, t.artist, t.album, t.genre, t.duration,
                  t.file_size, t.mime_type, t.uploaded_at, t.thumbnail_path,
                  t.seconds_listened, t.last_played
         HAVING window_seconds > 0
@@ -151,7 +151,7 @@ const songs = new Hono<{ Bindings: Bindings }>()
 
       const { results } = await c.env.MUSIC_DB.prepare(`
       SELECT 
-        t.id, t.filename, t.title, t.artist, t.album, t.genre, t.duration, 
+        t.id, t.filename, t.storage_key, t.title, t.artist, t.album, t.genre, t.duration,
         t.file_size, t.mime_type, t.uploaded_at, t.thumbnail_path,
         t.seconds_listened, t.last_played,
         0 as window_seconds
