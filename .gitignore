@@ -11,15 +11,15 @@ dist/
 .idea/usage.statistics.xml
 .idea/shelf
 full_stack_example/
+/scripts/
 
 # deps
 node_modules/
 .wrangler
 
 # env
-.env
-.env.production
-.dev.vars
+.env*
+.dev.vars*
 
 # logs
 logs/

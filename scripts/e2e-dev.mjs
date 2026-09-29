@@ -56,6 +56,10 @@ const devServer = spawn(
     env: {
       ...process.env,
       CF_PERSIST_STATE: persistRoot,
+      R2_S3_ENDPOINT: `http://127.0.0.1:${port}/cdn-cgi/local/r2/s3`,
+      R2_BUCKET_NAME: 'music-server-storage',
+      R2_ACCESS_KEY_ID: 'flowie2k-local',
+      R2_SECRET_ACCESS_KEY: 'flowie2k-local-development-only',
     },
   },
 );

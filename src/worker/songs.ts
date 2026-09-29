@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { AwsClient } from 'aws4fetch'
 import { zValidator } from '@hono/zod-validator'
 import { parseBuffer, type IAudioMetadata } from 'music-metadata'
 import { z } from 'zod'
@@ -177,46 +178,22 @@ const songs = new Hono<{ Bindings: Bindings }>()
         return c.json({ error: 'Song not found' }, 404)
       }
 
-      const object = await c.env.MUSIC_BUCKET.get(track.storage_key)
-
-      if (!object) {
-        return c.json({ error: 'File not found' }, 404)
+      c.header('Cache-Control', 'private, no-store')
+      c.header('Referrer-Policy', 'no-referrer')
+      const { R2_S3_ENDPOINT: endpoint, R2_BUCKET_NAME: bucket,
+        R2_ACCESS_KEY_ID: accessKeyId, R2_SECRET_ACCESS_KEY: secretAccessKey } = c.env
+      if (!endpoint || !bucket || !accessKeyId || !secretAccessKey) {
+        throw new Error('R2 signing configuration is incomplete')
       }
-
-      const range = c.req.header('range')
-      const fileSize = object.size
-
-      if (range) {
-        const parts = range.replace(/bytes=/, "").split("-")
-        const start = parseInt(parts[0], 10)
-        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1
-        const chunksize = (end - start) + 1
-
-        const rangeObject = await c.env.MUSIC_BUCKET.get(track.storage_key, {
-          range: { offset: start, length: chunksize }
-        })
-
-        if (!rangeObject) {
-          return c.json({ error: 'Range not satisfiable' }, 416)
-        }
-
-        c.header('Content-Range', `bytes ${start}-${end}/${fileSize}`)
-        c.header('Accept-Ranges', 'bytes')
-        c.header('Content-Length', chunksize.toString())
-        c.header('Content-Type', 'audio/mpeg')
-        c.status(206)
-
-        return c.body(rangeObject.body)
-      } else {
-        c.header('Content-Length', fileSize.toString())
-        c.header('Content-Type', 'audio/mpeg')
-        c.header('Accept-Ranges', 'bytes')
-
-        return c.body(object.body)
-      }
-    } catch (error) {
-      console.error(`[STREAM] Failed to stream song ID ${id}:`, error)
-      return c.json({ error: 'Failed to stream file' }, 500)
+      const url = new URL(`${endpoint.replace(/\/$/, '')}/${encodeURIComponent(bucket)}/${track.storage_key.split('/').map(encodeURIComponent).join('/')}`)
+      const client = new AwsClient({ accessKeyId, secretAccessKey, service: 's3', region: 'auto' })
+      // Leave Range unsigned so playback and seeking can reuse this URL.
+      url.searchParams.set('X-Amz-Expires', '86400')
+      const signed = await client.sign(url, { method: 'GET', aws: { signQuery: true } })
+      return c.redirect(signed.url, 307)
+    } catch {
+      console.error(`[STREAM] Failed to sign playback URL for song ID ${id}`)
+      return c.json({ error: 'Failed to prepare playback' }, 500)
     }
   })
   .get('/:id/thumbnail', zValidator('param', idParamSchema, zodError), async (c) => {

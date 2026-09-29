@@ -14,6 +14,9 @@
 		"enabled": true
 	},
 	"upload_source_maps": true,
+	"secrets": {
+		"required": ["R2_S3_ENDPOINT", "R2_BUCKET_NAME", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"]
+	},
 	"assets": {
 		"directory": "./dist/client",
 		"not_found_handling": "single-page-application"
@@ -21,7 +24,13 @@
 	"r2_buckets": [
 		{
 			"binding": "MUSIC_BUCKET",
-			"bucket_name": "music-server-storage"
+			"bucket_name": "music-server-storage",
+			"local_dev": {
+				"experimental_s3_credentials": {
+					"accessKeyId": "flowie2k-local",
+					"secretAccessKey": "flowie2k-local-development-only"
+				}
+			}
 		}
 	],
 	"d1_databases": [

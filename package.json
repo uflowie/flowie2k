@@ -2,6 +2,9 @@
   "name": "vite-react-template",
   "description": "A template for building a React application with Vite, Hono, and Cloudflare Workers",
   "version": "0.0.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "cloudflare": {
     "label": "Vite React Template",
     "products": [
@@ -28,6 +31,7 @@
     "@tanstack/react-router-devtools": "^1.167.1",
     "@tanstack/react-table": "^9.1.2",
     "@tanstack/react-virtual": "^3.14.10",
+    "aws4fetch": "^1.0.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "hono": "^4.13.4",
