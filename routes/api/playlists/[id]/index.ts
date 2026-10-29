@@ -2,7 +2,7 @@ import { playlists } from "@schema";
 import { defineHandler } from "void";
 import { db, eq, sql } from "void/db";
 
-import { idParams, playlistName } from "../../../../src/server/validation";
+import { idParams, playlistName } from "@/server/validation";
 
 // PUT /api/playlists/:id — rename
 export const PUT = defineHandler.withValidator({ params: idParams, body: playlistName })(async (

@@ -3,7 +3,7 @@ import { defineHandler } from "void";
 import { and, db, desc, eq, sql } from "void/db";
 import { z } from "zod";
 
-import { trackColumns } from "../../../src/server/tracks";
+import { trackColumns } from "@/server/tracks";
 
 // GET /api/songs?sort=popular|recent&days=N
 export const GET = defineHandler.withValidator({

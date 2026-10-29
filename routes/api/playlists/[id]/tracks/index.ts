@@ -3,8 +3,8 @@ import { defineHandler } from "void";
 import { asc, db, eq, sql } from "void/db";
 import { z } from "zod";
 
-import { trackDisplayColumns } from "../../../../../src/server/tracks";
-import { idParams } from "../../../../../src/server/validation";
+import { trackDisplayColumns } from "@/server/tracks";
+import { idParams } from "@/server/validation";
 
 // GET /api/playlists/:id/tracks — playlist info and its tracks in insertion order
 export const GET = defineHandler.withValidator({ params: idParams })(async (

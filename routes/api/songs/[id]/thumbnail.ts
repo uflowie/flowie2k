@@ -3,7 +3,7 @@ import { defineHandler } from "void";
 import { db, eq } from "void/db";
 import { storage } from "void/storage";
 
-import { idParams } from "../../../../src/server/validation";
+import { idParams } from "@/server/validation";
 
 // GET /api/songs/:id/thumbnail — album art from R2
 export const GET = defineHandler.withValidator({ params: idParams })(async (

@@ -3,7 +3,7 @@ import { defineHandler } from "void";
 import { and, db, eq, sql } from "void/db";
 import { z } from "zod";
 
-import { positiveId } from "../../../../../src/server/validation";
+import { positiveId } from "@/server/validation";
 
 // DELETE /api/playlists/:id/tracks/:trackId
 export const DELETE = defineHandler.withValidator({

@@ -2,7 +2,7 @@ import { playlists } from "@schema";
 import { defineHandler } from "void";
 import { db, desc, sql } from "void/db";
 
-import { playlistName } from "../../../src/server/validation";
+import { playlistName } from "@/server/validation";
 
 // GET /api/playlists — most recently played or edited first
 export const GET = defineHandler(async () => {

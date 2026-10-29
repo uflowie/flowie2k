@@ -3,7 +3,7 @@ import { defineHandler } from "void";
 import { db, eq } from "void/db";
 import { storage } from "void/storage";
 
-import { idParams } from "../../../../src/server/validation";
+import { idParams } from "@/server/validation";
 
 // DELETE /api/songs/:id — removes the files from R2 and the track row
 export const DELETE = defineHandler.withValidator({ params: idParams })(async (

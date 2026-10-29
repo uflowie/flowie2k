@@ -3,7 +3,7 @@ import { defineHandler } from "void";
 import { db, eq, sql } from "void/db";
 import { z } from "zod";
 
-import { positiveId } from "../../../../src/server/validation";
+import { positiveId } from "@/server/validation";
 
 // GET /api/analytics/stats/:track_id
 export const GET = defineHandler.withValidator({

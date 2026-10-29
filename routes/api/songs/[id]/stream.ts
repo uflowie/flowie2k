@@ -2,8 +2,8 @@ import { tracks } from "@schema";
 import { defineHandler } from "void";
 import { db, eq } from "void/db";
 
-import { presignGetUrl } from "../../../../src/server/presign";
-import { idParams } from "../../../../src/server/validation";
+import { presignGetUrl } from "@/server/presign";
+import { idParams } from "@/server/validation";
 
 // GET /api/songs/:id/stream — redirects to a presigned R2 URL
 export const GET = defineHandler.withValidator({ params: idParams })(async (
