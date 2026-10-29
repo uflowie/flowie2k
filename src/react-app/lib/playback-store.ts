@@ -1,91 +1,83 @@
-import { create } from "zustand"
+import { create } from "zustand";
 
-import {
-  DEFAULT_PLAYLIST,
-  getPlaylistKey,
-  type ActivePlaylist,
-} from "@/react-app/lib/playlists"
+import { DEFAULT_PLAYLIST, getPlaylistKey, type ActivePlaylist } from "@/react-app/lib/playlists";
 
 const readStoredBoolean = (key: string, fallback: boolean) => {
-  const stored = window.localStorage.getItem(key)
+  const stored = window.localStorage.getItem(key);
   if (stored === null) {
-    return fallback
+    return fallback;
   }
-  return stored === "true"
-}
+  return stored === "true";
+};
 
 const shuffleArray = (items: number[]) => {
-  const array = [...items]
+  const array = [...items];
   for (let index = array.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1))
-    const current = array[index]
-    array[index] = array[swapIndex]
-    array[swapIndex] = current
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const current = array[index];
+    array[index] = array[swapIndex];
+    array[swapIndex] = current;
   }
-  return array
-}
+  return array;
+};
 
-const buildQueue = (
-  songIds: number[],
-  shuffle: boolean,
-  currentSongId: number | null,
-) => {
+const buildQueue = (songIds: number[], shuffle: boolean, currentSongId: number | null) => {
   if (!shuffle) {
-    const index = currentSongId ? songIds.indexOf(currentSongId) : 0
-    return { queue: songIds, index: index >= 0 ? index : 0 }
+    const index = currentSongId ? songIds.indexOf(currentSongId) : 0;
+    return { queue: songIds, index: index >= 0 ? index : 0 };
   }
 
-  const shuffled = shuffleArray(songIds)
+  const shuffled = shuffleArray(songIds);
   if (currentSongId && shuffled.includes(currentSongId)) {
     return {
       queue: [currentSongId, ...shuffled.filter((id) => id !== currentSongId)],
       index: 0,
-    }
+    };
   }
 
-  return { queue: shuffled, index: 0 }
-}
+  return { queue: shuffled, index: 0 };
+};
 
 const areIdsEqual = (first: number[], second: number[]) => {
   if (first === second) {
-    return true
+    return true;
   }
   if (first.length !== second.length) {
-    return false
+    return false;
   }
-  return first.every((value, index) => value === second[index])
-}
+  return first.every((value, index) => value === second[index]);
+};
 
 type StartPlaybackPayload = {
-  playlist: ActivePlaylist
-  songIds: number[]
-  songId?: number
-}
+  playlist: ActivePlaylist;
+  songIds: number[];
+  songId?: number;
+};
 
 type PlaybackStore = {
-  activePlaylist: ActivePlaylist
-  playbackPlaylist: ActivePlaylist
-  activePlaylistSongIds: number[]
-  queueSource: number[]
-  queue: number[]
-  queueIndex: number
-  currentSongId: number | null
-  isPlaying: boolean
-  shuffle: boolean
-  repeat: boolean
-  restartToken: number
-  setActivePlaylist: (playlist: ActivePlaylist) => void
-  setActivePlaylistSongIds: (songIds: number[]) => void
-  startPlayback: (payload: StartPlaybackPayload) => void
-  restartCurrentSong: () => void
-  play: () => void
-  pause: () => void
-  setIsPlaying: (isPlaying: boolean) => void
-  next: () => void
-  previous: () => void
-  toggleShuffle: () => void
-  toggleRepeat: () => void
-}
+  activePlaylist: ActivePlaylist;
+  playbackPlaylist: ActivePlaylist;
+  activePlaylistSongIds: number[];
+  queueSource: number[];
+  queue: number[];
+  queueIndex: number;
+  currentSongId: number | null;
+  isPlaying: boolean;
+  shuffle: boolean;
+  repeat: boolean;
+  restartToken: number;
+  setActivePlaylist: (playlist: ActivePlaylist) => void;
+  setActivePlaylistSongIds: (songIds: number[]) => void;
+  startPlayback: (payload: StartPlaybackPayload) => void;
+  restartCurrentSong: () => void;
+  play: () => void;
+  pause: () => void;
+  setIsPlaying: (isPlaying: boolean) => void;
+  next: () => void;
+  previous: () => void;
+  toggleShuffle: () => void;
+  toggleRepeat: () => void;
+};
 
 const createPlaybackState = ({
   playlist,
@@ -93,12 +85,12 @@ const createPlaybackState = ({
   shuffle,
   startId,
 }: {
-  playlist: ActivePlaylist
-  songIds: number[]
-  shuffle: boolean
-  startId: number
+  playlist: ActivePlaylist;
+  songIds: number[];
+  shuffle: boolean;
+  startId: number;
 }) => {
-  const { queue, index } = buildQueue(songIds, shuffle, startId)
+  const { queue, index } = buildQueue(songIds, shuffle, startId);
   return {
     playbackPlaylist: playlist,
     queueSource: songIds,
@@ -106,21 +98,17 @@ const createPlaybackState = ({
     queueIndex: index,
     currentSongId: startId,
     isPlaying: true,
-  }
-}
+  };
+};
 
-const createQueueState = (
-  songIds: number[],
-  shuffle: boolean,
-  currentSongId: number | null,
-) => {
-  const { queue, index } = buildQueue(songIds, shuffle, currentSongId)
+const createQueueState = (songIds: number[], shuffle: boolean, currentSongId: number | null) => {
+  const { queue, index } = buildQueue(songIds, shuffle, currentSongId);
   return {
     queueSource: songIds,
     queue,
     queueIndex: index,
-  }
-}
+  };
+};
 
 export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   activePlaylist: DEFAULT_PLAYLIST,
@@ -140,45 +128,45 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         getPlaylistKey(state.activePlaylist) === getPlaylistKey(playlist) &&
         state.activePlaylist.name === playlist.name
       ) {
-        return state
+        return state;
       }
-      return { activePlaylist: playlist, activePlaylistSongIds: [] }
+      return { activePlaylist: playlist, activePlaylistSongIds: [] };
     }),
   setActivePlaylistSongIds: (songIds) =>
     set((state) => {
-      const sameActive = areIdsEqual(state.activePlaylistSongIds, songIds)
+      const sameActive = areIdsEqual(state.activePlaylistSongIds, songIds);
       const playbackMatches =
-        getPlaylistKey(state.activePlaylist) === getPlaylistKey(state.playbackPlaylist)
-      const sameQueueSource = areIdsEqual(state.queueSource, songIds)
+        getPlaylistKey(state.activePlaylist) === getPlaylistKey(state.playbackPlaylist);
+      const sameQueueSource = areIdsEqual(state.queueSource, songIds);
 
       if (sameActive && (!playbackMatches || sameQueueSource)) {
-        return state
+        return state;
       }
 
-      const nextState = { activePlaylistSongIds: songIds }
+      const nextState = { activePlaylistSongIds: songIds };
       if (!playbackMatches) {
-        return nextState
+        return nextState;
       }
       if (!songIds.length) {
-        return { ...nextState, queueSource: [], queue: [], queueIndex: 0 }
+        return { ...nextState, queueSource: [], queue: [], queueIndex: 0 };
       }
       if (state.shuffle) {
-        return { ...nextState, queueSource: songIds }
+        return { ...nextState, queueSource: songIds };
       }
       return {
         ...nextState,
         ...createQueueState(songIds, state.shuffle, state.currentSongId),
-      }
+      };
     }),
   startPlayback: ({ playlist, songIds, songId }) => {
     if (!songIds.length) {
-      return
+      return;
     }
-    const startId = songId ?? songIds[0] ?? null
+    const startId = songId ?? songIds[0] ?? null;
     if (!startId) {
-      return
+      return;
     }
-    set(createPlaybackState({ playlist, songIds, shuffle: get().shuffle, startId }))
+    set(createPlaybackState({ playlist, songIds, shuffle: get().shuffle, startId }));
   },
   restartCurrentSong: () =>
     set((state) => ({
@@ -186,15 +174,15 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
       isPlaying: true,
     })),
   play: () => {
-    const state = get()
+    const state = get();
     if (state.currentSongId) {
-      set({ isPlaying: true })
-      return
+      set({ isPlaying: true });
+      return;
     }
     if (!state.activePlaylistSongIds.length) {
-      return
+      return;
     }
-    const startId = state.activePlaylistSongIds[0]
+    const startId = state.activePlaylistSongIds[0];
     set(
       createPlaybackState({
         playlist: state.activePlaylist,
@@ -202,44 +190,44 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
         shuffle: state.shuffle,
         startId,
       }),
-    )
+    );
   },
   pause: () => set({ isPlaying: false }),
   setIsPlaying: (isPlaying) => set({ isPlaying }),
   next: () => {
-    const { queue, queueIndex } = get()
+    const { queue, queueIndex } = get();
     if (!queue.length) {
-      return
+      return;
     }
-    const nextIndex = (queueIndex + 1) % queue.length
-    const nextId = queue[nextIndex]
-    set({ queueIndex: nextIndex, currentSongId: nextId, isPlaying: true })
+    const nextIndex = (queueIndex + 1) % queue.length;
+    const nextId = queue[nextIndex];
+    set({ queueIndex: nextIndex, currentSongId: nextId, isPlaying: true });
   },
   previous: () => {
-    const { queue, queueIndex } = get()
+    const { queue, queueIndex } = get();
     if (!queue.length) {
-      return
+      return;
     }
-    const prevIndex = (queueIndex - 1 + queue.length) % queue.length
-    const prevId = queue[prevIndex]
-    set({ queueIndex: prevIndex, currentSongId: prevId, isPlaying: true })
+    const prevIndex = (queueIndex - 1 + queue.length) % queue.length;
+    const prevId = queue[prevIndex];
+    set({ queueIndex: prevIndex, currentSongId: prevId, isPlaying: true });
   },
   toggleShuffle: () =>
     set((state) => {
-      const nextShuffle = !state.shuffle
-      window.localStorage.setItem("player.shuffle", String(nextShuffle))
+      const nextShuffle = !state.shuffle;
+      window.localStorage.setItem("player.shuffle", String(nextShuffle));
       if (!state.queueSource.length) {
-        return { shuffle: nextShuffle }
+        return { shuffle: nextShuffle };
       }
       return {
         shuffle: nextShuffle,
         ...createQueueState(state.queueSource, nextShuffle, state.currentSongId),
-      }
+      };
     }),
   toggleRepeat: () =>
     set((state) => {
-      const nextRepeat = !state.repeat
-      window.localStorage.setItem("player.repeat", String(nextRepeat))
-      return { repeat: nextRepeat }
+      const nextRepeat = !state.repeat;
+      window.localStorage.setItem("player.repeat", String(nextRepeat));
+      return { repeat: nextRepeat };
     }),
-}))
+}));

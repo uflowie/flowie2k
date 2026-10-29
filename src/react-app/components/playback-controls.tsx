@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Gauge,
   Music,
@@ -9,42 +9,37 @@ import {
   SkipBack,
   SkipForward,
   Volume2,
-} from "lucide-react"
-import { useShallow } from "zustand/react/shallow"
+} from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 
-import { Button } from "@/components/ui/button"
-import { Slider } from "@/components/ui/slider"
-import {
-  getStreamUrl,
-  getThumbnailUrl,
-  useSongsQuery,
-} from "@/react-app/lib/queries"
-import { usePlaybackStore } from "@/react-app/lib/playback-store"
-import { getSongTitle } from "@/react-app/lib/songs"
-import { cacheAudio, getCachedAudio } from "@/react-app/lib/audio-cache"
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { getStreamUrl, getThumbnailUrl, useSongsQuery } from "@/react-app/lib/queries";
+import { usePlaybackStore } from "@/react-app/lib/playback-store";
+import { getSongTitle } from "@/react-app/lib/songs";
+import { cacheAudio, getCachedAudio } from "@/react-app/lib/audio-cache";
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max)
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 const readStoredNumber = (key: string, fallback: number) => {
-  const stored = window.localStorage.getItem(key)
+  const stored = window.localStorage.getItem(key);
   if (!stored) {
-    return fallback
+    return fallback;
   }
-  const parsed = Number(stored)
-  return Number.isFinite(parsed) ? parsed : fallback
-}
+  const parsed = Number(stored);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
 
 const formatTime = (value?: number | null) => {
   if (!value || value <= 0) {
-    return "0:00"
+    return "0:00";
   }
 
-  const rounded = Math.floor(value)
-  const minutes = Math.floor(rounded / 60)
-  const remaining = rounded % 60
-  return `${minutes}:${remaining.toString().padStart(2, "0")}`
-}
+  const rounded = Math.floor(value);
+  const minutes = Math.floor(rounded / 60);
+  const remaining = rounded % 60;
+  return `${minutes}:${remaining.toString().padStart(2, "0")}`;
+};
 
 const updateMediaSessionPosition = (audio: HTMLAudioElement) => {
   if (
@@ -53,7 +48,7 @@ const updateMediaSessionPosition = (audio: HTMLAudioElement) => {
     !Number.isFinite(audio.duration) ||
     audio.duration <= 0
   ) {
-    return
+    return;
   }
 
   try {
@@ -61,11 +56,11 @@ const updateMediaSessionPosition = (audio: HTMLAudioElement) => {
       duration: audio.duration,
       playbackRate: audio.playbackRate || 1,
       position: clamp(audio.currentTime, 0, audio.duration),
-    })
+    });
   } catch {
     // Some browsers expose Media Session without supporting position state.
   }
-}
+};
 
 const scheduleStoredValue = (
   key: string,
@@ -74,14 +69,14 @@ const scheduleStoredValue = (
   delayMs = 200,
 ) => {
   if (timeoutRef.current !== null) {
-    window.clearTimeout(timeoutRef.current)
+    window.clearTimeout(timeoutRef.current);
   }
 
   timeoutRef.current = window.setTimeout(() => {
-    window.localStorage.setItem(key, value)
-    timeoutRef.current = null
-  }, delayMs)
-}
+    window.localStorage.setItem(key, value);
+    timeoutRef.current = null;
+  }, delayMs);
+};
 
 const toggleControlClass = (active: boolean) =>
   [
@@ -89,10 +84,10 @@ const toggleControlClass = (active: boolean) =>
     active
       ? "text-foreground hover:bg-accent after:bg-foreground after:shadow-[0_0_10px_var(--foreground)]"
       : "text-foreground/55 hover:text-foreground after:bg-foreground/25",
-  ].join(" ")
+  ].join(" ");
 
 export function PlaybackControls() {
-  const playbackPlaylist = usePlaybackStore((state) => state.playbackPlaylist)
+  const playbackPlaylist = usePlaybackStore((state) => state.playbackPlaylist);
   const {
     currentSongId,
     isPlaying,
@@ -125,58 +120,54 @@ export function PlaybackControls() {
       toggleRepeat: state.toggleRepeat,
       setIsPlaying: state.setIsPlaying,
     })),
-  )
+  );
 
-  const { data: playbackSongs = [] } = useSongsQuery(playbackPlaylist)
+  const { data: playbackSongs = [] } = useSongsQuery(playbackPlaylist);
 
   const currentSong = useMemo(
     () =>
-      currentSongId
-        ? playbackSongs.find((song) => song.id === currentSongId) ?? null
-        : null,
+      currentSongId ? (playbackSongs.find((song) => song.id === currentSongId) ?? null) : null,
     [playbackSongs, currentSongId],
-  )
+  );
   const currentSongLabel = currentSong
     ? getSongTitle(currentSong)
     : currentSongId
       ? "Loading..."
-      : "Select a song"
-  const currentArtistLabel = currentSong?.artist?.trim()
-  const currentAlbumLabel = currentSong?.album?.trim()
+      : "Select a song";
+  const currentArtistLabel = currentSong?.artist?.trim();
+  const currentAlbumLabel = currentSong?.album?.trim();
 
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const sourceReadyRef = useRef(false)
-  const volumeStorageTimeoutRef = useRef<number | null>(null)
-  const playbackRateStorageTimeoutRef = useRef<number | null>(null)
-  const [volume, setVolume] = useState(() =>
-    clamp(readStoredNumber("player.volume", 1), 0, 1),
-  )
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sourceReadyRef = useRef(false);
+  const volumeStorageTimeoutRef = useRef<number | null>(null);
+  const playbackRateStorageTimeoutRef = useRef<number | null>(null);
+  const [volume, setVolume] = useState(() => clamp(readStoredNumber("player.volume", 1), 0, 1));
   const [playbackRate, setPlaybackRate] = useState(() =>
     clamp(readStoredNumber("player.playbackRate", 1), 0.5, 1.5),
-  )
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const [isSeeking, setIsSeeking] = useState(false)
-  const displayCurrentTime = currentSongId ? currentTime : 0
-  const displayDuration = currentSongId ? duration : 0
-  const playbackRateValue = useMemo(() => [playbackRate], [playbackRate])
-  const volumeValue = useMemo(() => [volume], [volume])
+  );
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const displayCurrentTime = currentSongId ? currentTime : 0;
+  const displayDuration = currentSongId ? duration : 0;
+  const playbackRateValue = useMemo(() => [playbackRate], [playbackRate]);
+  const volumeValue = useMemo(() => [volume], [volume]);
   const seekValue = useMemo(
     () => [Math.min(displayCurrentTime, displayDuration || 0)],
     [displayCurrentTime, displayDuration],
-  )
-  const canPlay = Boolean(currentSongId || activePlaylistSongIds.length)
-  const storageKey = currentSong?.storage_key
-  const fileSize = currentSong?.file_size
+  );
+  const canPlay = Boolean(currentSongId || activePlaylistSongIds.length);
+  const storageKey = currentSong?.storage_key;
+  const fileSize = currentSong?.file_size;
 
   useEffect(() => {
     if (!("mediaSession" in navigator)) {
-      return
+      return;
     }
 
     if (!currentSong) {
-      navigator.mediaSession.metadata = null
-      return
+      navigator.mediaSession.metadata = null;
+      return;
     }
 
     navigator.mediaSession.metadata = new MediaMetadata({
@@ -186,234 +177,230 @@ export function PlaybackControls() {
       ...(currentSong.thumbnail_path
         ? { artwork: [{ src: getThumbnailUrl(currentSong.id) }] }
         : {}),
-    })
-  }, [currentAlbumLabel, currentArtistLabel, currentSong])
+    });
+  }, [currentAlbumLabel, currentArtistLabel, currentSong]);
 
   useEffect(() => {
     if (!("mediaSession" in navigator)) {
-      return
+      return;
     }
 
     navigator.mediaSession.playbackState = currentSongId
       ? isPlaying
         ? "playing"
         : "paused"
-      : "none"
-  }, [currentSongId, isPlaying])
+      : "none";
+  }, [currentSongId, isPlaying]);
 
   useEffect(() => {
-    const audio = audioRef.current
+    const audio = audioRef.current;
     if (!audio) {
-      return
+      return;
     }
 
-    sourceReadyRef.current = false
-    audio.pause()
-    audio.removeAttribute("src")
-    audio.load()
-    if (!currentSongId || !storageKey || fileSize === undefined) return
+    sourceReadyRef.current = false;
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+    if (!currentSongId || !storageKey || fileSize === undefined) return;
 
-    const controller = new AbortController()
-    let objectUrl: string | undefined
+    const controller = new AbortController();
+    let objectUrl: string | undefined;
     void (async () => {
-      const cached = await getCachedAudio(storageKey, fileSize)
-      if (controller.signal.aborted) return
-      const streamUrl = getStreamUrl(currentSongId)
-      if (cached) objectUrl = URL.createObjectURL(cached)
-      audio.src = objectUrl ?? streamUrl
-      audio.load()
-      sourceReadyRef.current = true
-      if (!cached) void cacheAudio(storageKey, fileSize, streamUrl, controller.signal)
+      const cached = await getCachedAudio(storageKey, fileSize);
+      if (controller.signal.aborted) return;
+      const streamUrl = getStreamUrl(currentSongId);
+      if (cached) objectUrl = URL.createObjectURL(cached);
+      audio.src = objectUrl ?? streamUrl;
+      audio.load();
+      sourceReadyRef.current = true;
+      if (!cached) void cacheAudio(storageKey, fileSize, streamUrl, controller.signal);
       if (usePlaybackStore.getState().isPlaying) {
         try {
-          await audio.play()
+          await audio.play();
         } catch (error) {
-          if (!controller.signal.aborted && !(error instanceof DOMException && error.name === "AbortError")) {
-            setIsPlaying(false)
+          if (
+            !controller.signal.aborted &&
+            !(error instanceof DOMException && error.name === "AbortError")
+          ) {
+            setIsPlaying(false);
           }
         }
       }
-    })()
+    })();
 
     return () => {
-      controller.abort()
-      sourceReadyRef.current = false
-      audio.pause()
-      audio.removeAttribute("src")
-      audio.load()
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-    }
-  }, [currentSongId, storageKey, fileSize, restartToken, setIsPlaying])
+      controller.abort();
+      sourceReadyRef.current = false;
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [currentSongId, storageKey, fileSize, restartToken, setIsPlaying]);
 
   useEffect(() => {
-    const audio = audioRef.current
-    if (!audio || !sourceReadyRef.current) return
+    const audio = audioRef.current;
+    if (!audio || !sourceReadyRef.current) return;
 
     if (isPlaying) {
       audio.play().catch((error: unknown) => {
-        if (!(error instanceof DOMException && error.name === "AbortError")) setIsPlaying(false)
-      })
+        if (!(error instanceof DOMException && error.name === "AbortError")) setIsPlaying(false);
+      });
     } else {
-      audio.pause()
+      audio.pause();
     }
-  }, [isPlaying, setIsPlaying])
+  }, [isPlaying, setIsPlaying]);
 
   useEffect(() => {
-    const audio = audioRef.current
+    const audio = audioRef.current;
     if (!audio) {
-      return
+      return;
     }
 
-    audio.volume = clamp(volume, 0, 1)
-  }, [volume])
+    audio.volume = clamp(volume, 0, 1);
+  }, [volume]);
 
   useEffect(() => {
-    const audio = audioRef.current
+    const audio = audioRef.current;
     if (!audio) {
-      return
+      return;
     }
 
-    const clampedRate = clamp(playbackRate, 0.5, 1.5)
-    audio.playbackRate = clampedRate
-    audio.defaultPlaybackRate = clampedRate
+    const clampedRate = clamp(playbackRate, 0.5, 1.5);
+    audio.playbackRate = clampedRate;
+    audio.defaultPlaybackRate = clampedRate;
 
     const audioElement = audio as HTMLAudioElement & {
-      preservesPitch?: boolean
-      mozPreservesPitch?: boolean
-      webkitPreservesPitch?: boolean
-    }
+      preservesPitch?: boolean;
+      mozPreservesPitch?: boolean;
+      webkitPreservesPitch?: boolean;
+    };
     if (typeof audioElement.preservesPitch === "boolean") {
-      audioElement.preservesPitch = false
+      audioElement.preservesPitch = false;
     }
     if (typeof audioElement.mozPreservesPitch === "boolean") {
-      audioElement.mozPreservesPitch = false
+      audioElement.mozPreservesPitch = false;
     }
     if (typeof audioElement.webkitPreservesPitch === "boolean") {
-      audioElement.webkitPreservesPitch = false
+      audioElement.webkitPreservesPitch = false;
     }
 
-    updateMediaSessionPosition(audio)
-  }, [playbackRate])
+    updateMediaSessionPosition(audio);
+  }, [playbackRate]);
 
   const handleTogglePlay = useCallback(() => {
     if (isPlaying) {
-      pause()
+      pause();
     } else {
-      play()
+      play();
     }
-  }, [isPlaying, pause, play])
+  }, [isPlaying, pause, play]);
 
   const handleSeek = useCallback(
     (value: number) => {
-      const audio = audioRef.current
+      const audio = audioRef.current;
       if (!audio || !Number.isFinite(value)) {
-        return
+        return;
       }
-      const nextTime = clamp(value, 0, duration || audio.duration || 0)
-      audio.currentTime = nextTime
-      setCurrentTime(nextTime)
-      updateMediaSessionPosition(audio)
+      const nextTime = clamp(value, 0, duration || audio.duration || 0);
+      audio.currentTime = nextTime;
+      setCurrentTime(nextTime);
+      updateMediaSessionPosition(audio);
     },
     [duration],
-  )
+  );
 
   useEffect(() => {
     if (!("mediaSession" in navigator)) {
-      return
+      return;
     }
 
-    const registeredActions: MediaSessionAction[] = []
-    const registerAction = (
-      action: MediaSessionAction,
-      handler: MediaSessionActionHandler,
-    ) => {
+    const registeredActions: MediaSessionAction[] = [];
+    const registerAction = (action: MediaSessionAction, handler: MediaSessionActionHandler) => {
       try {
-        navigator.mediaSession.setActionHandler(action, handler)
-        registeredActions.push(action)
+        navigator.mediaSession.setActionHandler(action, handler);
+        registeredActions.push(action);
       } catch {
         // Media Session support varies by browser and operating system.
       }
-    }
+    };
 
     const seekBy = (offset: number) => {
-      const audio = audioRef.current
+      const audio = audioRef.current;
       if (!audio) {
-        return
+        return;
       }
-      handleSeek(audio.currentTime + offset)
-    }
+      handleSeek(audio.currentTime + offset);
+    };
 
-    registerAction("play", play)
-    registerAction("pause", pause)
-    registerAction("previoustrack", previous)
-    registerAction("nexttrack", next)
+    registerAction("play", play);
+    registerAction("pause", pause);
+    registerAction("previoustrack", previous);
+    registerAction("nexttrack", next);
     registerAction("seekbackward", ({ seekOffset }) => {
-      seekBy(-(seekOffset ?? 10))
-    })
+      seekBy(-(seekOffset ?? 10));
+    });
     registerAction("seekforward", ({ seekOffset }) => {
-      seekBy(seekOffset ?? 10)
-    })
+      seekBy(seekOffset ?? 10);
+    });
     registerAction("seekto", ({ seekTime }) => {
       if (typeof seekTime === "number") {
-        handleSeek(seekTime)
+        handleSeek(seekTime);
       }
-    })
+    });
 
     return () => {
       for (const action of registeredActions) {
         try {
-          navigator.mediaSession.setActionHandler(action, null)
+          navigator.mediaSession.setActionHandler(action, null);
         } catch {
           // Ignore cleanup errors from partially supported implementations.
         }
       }
-    }
-  }, [handleSeek, next, pause, play, previous])
+    };
+  }, [handleSeek, next, pause, play, previous]);
 
   const handleEnded = useCallback(() => {
     if (repeat && audioRef.current) {
-      usePlaybackStore.getState().restartCurrentSong()
-      return
+      usePlaybackStore.getState().restartCurrentSong();
+      return;
     }
 
-    next()
-  }, [next, repeat])
+    next();
+  }, [next, repeat]);
   const handlePlaybackRateChange = useCallback((value: number[]) => {
-    const nextValue = value[0]
+    const nextValue = value[0];
     if (typeof nextValue !== "number") {
-      return
+      return;
     }
 
-    const clamped = clamp(nextValue, 0.5, 1.5)
+    const clamped = clamp(nextValue, 0.5, 1.5);
     setPlaybackRate((current) => {
       if (current === clamped) {
-        return current
+        return current;
       }
 
-      scheduleStoredValue(
-        "player.playbackRate",
-        String(clamped),
-        playbackRateStorageTimeoutRef,
-      )
-      return clamped
-    })
-  }, [])
+      scheduleStoredValue("player.playbackRate", String(clamped), playbackRateStorageTimeoutRef);
+      return clamped;
+    });
+  }, []);
   const handleVolumeChange = useCallback((value: number[]) => {
-    const nextValue = value[0]
+    const nextValue = value[0];
     if (typeof nextValue !== "number") {
-      return
+      return;
     }
 
-    const clamped = clamp(nextValue, 0, 1)
+    const clamped = clamp(nextValue, 0, 1);
     setVolume((current) => {
       if (current === clamped) {
-        return current
+        return current;
       }
 
-      scheduleStoredValue("player.volume", String(clamped), volumeStorageTimeoutRef)
-      return clamped
-    })
-  }, [])
+      scheduleStoredValue("player.volume", String(clamped), volumeStorageTimeoutRef);
+      return clamped;
+    });
+  }, []);
 
   return (
     <div className="bg-background px-3 py-2">
@@ -425,14 +412,10 @@ export function PlaybackControls() {
           <div className="flex min-w-0 flex-1 flex-col justify-center space-y-0.5">
             <p className="truncate text-sm font-medium">{currentSongLabel}</p>
             {currentArtistLabel ? (
-              <p className="truncate text-xs text-muted-foreground">
-                {currentArtistLabel}
-              </p>
+              <p className="truncate text-xs text-muted-foreground">{currentArtistLabel}</p>
             ) : null}
             {currentAlbumLabel ? (
-              <p className="truncate text-xs text-muted-foreground">
-                {currentAlbumLabel}
-              </p>
+              <p className="truncate text-xs text-muted-foreground">{currentAlbumLabel}</p>
             ) : null}
           </div>
         </div>
@@ -505,20 +488,20 @@ export function PlaybackControls() {
               onPointerUp={() => setIsSeeking(false)}
               onPointerCancel={() => setIsSeeking(false)}
               onValueChange={(value) => {
-                const nextValue = value[0]
+                const nextValue = value[0];
                 if (typeof nextValue !== "number") {
-                  return
+                  return;
                 }
                 if (nextValue !== displayCurrentTime) {
-                  handleSeek(nextValue)
+                  handleSeek(nextValue);
                 }
               }}
               onValueCommit={(value) => {
-                const nextValue = value[0]
+                const nextValue = value[0];
                 if (typeof nextValue !== "number") {
-                  return
+                  return;
                 }
-                handleSeek(nextValue)
+                handleSeek(nextValue);
               }}
               className="w-full py-2 -my-2"
               disabled={!currentSongId || !displayDuration}
@@ -539,9 +522,7 @@ export function PlaybackControls() {
               className="w-20"
               aria-label="Playback speed"
             />
-            <span className="w-8 text-right">
-              {Math.round(playbackRate * 100)}%
-            </span>
+            <span className="w-8 text-right">{Math.round(playbackRate * 100)}%</span>
           </label>
           <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground [&_svg]:text-foreground/70">
             <Volume2 className="size-3.5" />
@@ -554,9 +535,7 @@ export function PlaybackControls() {
               className="w-20"
               aria-label="Volume"
             />
-            <span className="w-8 text-right">
-              {Math.round(volume * 100)}%
-            </span>
+            <span className="w-8 text-right">{Math.round(volume * 100)}%</span>
           </label>
         </div>
       </div>
@@ -565,28 +544,28 @@ export function PlaybackControls() {
         preload="metadata"
         onTimeUpdate={(event) => {
           if (isSeeking) {
-            return
+            return;
           }
-          const target = event.currentTarget
-          setCurrentTime(target.currentTime || 0)
-          updateMediaSessionPosition(target)
+          const target = event.currentTarget;
+          setCurrentTime(target.currentTime || 0);
+          updateMediaSessionPosition(target);
         }}
         onLoadedMetadata={(event) => {
-          const nextDuration = event.currentTarget.duration
-          setDuration(Number.isFinite(nextDuration) ? nextDuration : 0)
-          updateMediaSessionPosition(event.currentTarget)
+          const nextDuration = event.currentTarget.duration;
+          setDuration(Number.isFinite(nextDuration) ? nextDuration : 0);
+          updateMediaSessionPosition(event.currentTarget);
         }}
         onEnded={handleEnded}
         onError={() => {
-          if (sourceReadyRef.current) setIsPlaying(false)
+          if (sourceReadyRef.current) setIsPlaying(false);
         }}
         onPlay={(event) => {
-          if (sourceReadyRef.current && !event.currentTarget.paused) setIsPlaying(true)
+          if (sourceReadyRef.current && !event.currentTarget.paused) setIsPlaying(true);
         }}
         onPause={(event) => {
-          if (sourceReadyRef.current && event.currentTarget.paused) setIsPlaying(false)
+          if (sourceReadyRef.current && event.currentTarget.paused) setIsPlaying(false);
         }}
       />
     </div>
-  )
+  );
 }

@@ -1,16 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  MoreVertical,
-  Search,
-} from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown, MoreVertical, Search } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Table,
   TableBody,
@@ -18,7 +12,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
   flexRender,
   metaHelper,
@@ -26,92 +20,82 @@ import {
   type ColumnDef,
   type Row,
   useTable,
-} from "@tanstack/react-table"
-import { useVirtualizer } from "@tanstack/react-virtual"
+} from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   getPlaylistKey,
   getPlaylistStatusMessage,
   type ActivePlaylist,
-} from "@/react-app/lib/playlists"
+} from "@/react-app/lib/playlists";
 import {
   useAddTrackToPlaylistMutation,
   useDeleteSongMutation,
   useRemoveTrackFromPlaylistMutation,
   useSongsQuery,
-} from "@/react-app/lib/queries"
-import { usePlaybackStore } from "@/react-app/lib/playback-store"
-import { getSongTitle } from "@/react-app/lib/songs"
-import type {
-  PlaylistSummary,
-  PlaylistSong,
-} from "@/react-app/lib/types"
+} from "@/react-app/lib/queries";
+import { usePlaybackStore } from "@/react-app/lib/playback-store";
+import { getSongTitle } from "@/react-app/lib/songs";
+import type { PlaylistSummary, PlaylistSong } from "@/react-app/lib/types";
 
 const formatDuration = (seconds?: number | null) => {
   if (!seconds || seconds <= 0) {
-    return "--"
+    return "--";
   }
 
-  const rounded = Math.round(seconds)
-  const minutes = Math.floor(rounded / 60)
-  const remaining = rounded % 60
-  return `${minutes}:${remaining.toString().padStart(2, "0")}`
-}
+  const rounded = Math.round(seconds);
+  const minutes = Math.floor(rounded / 60);
+  const remaining = rounded % 60;
+  return `${minutes}:${remaining.toString().padStart(2, "0")}`;
+};
 
 const formatListeningTime = (seconds?: number | null) => {
   if (!seconds || seconds <= 0) {
-    return "--"
+    return "--";
   }
 
-  const rounded = Math.round(seconds)
-  const hours = Math.floor(rounded / 3600)
-  const minutes = Math.floor((rounded % 3600) / 60)
-  const remaining = rounded % 60
+  const rounded = Math.round(seconds);
+  const hours = Math.floor(rounded / 3600);
+  const minutes = Math.floor((rounded % 3600) / 60);
+  const remaining = rounded % 60;
 
   if (hours > 0) {
-    return `${hours}h ${minutes}m`
+    return `${hours}h ${minutes}m`;
   }
 
   if (minutes > 0) {
-    return `${minutes}m ${remaining}s`
+    return `${minutes}m ${remaining}s`;
   }
 
-  return `${remaining}s`
-}
+  return `${remaining}s`;
+};
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   month: "short",
   day: "2-digit",
-})
+});
 
 const formatDate = (value?: string | null) => {
   if (!value) {
-    return "--"
+    return "--";
   }
 
-  const date = new Date(value)
+  const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "--"
+    return "--";
   }
 
-  return dateFormatter.format(date)
-}
+  return dateFormatter.format(date);
+};
 
-type SortKey =
-  | "title"
-  | "artist"
-  | "album"
-  | "duration"
-  | "time"
-  | "lastPlayed"
-  | "dateAdded"
+type SortKey = "title" | "artist" | "album" | "duration" | "time" | "lastPlayed" | "dateAdded";
 
 type TableSort = {
-  key: SortKey
-  direction: "asc" | "desc"
-}
+  key: SortKey;
+  direction: "asc" | "desc";
+};
 
-const TABLE_SORT_STORAGE_KEY = "playlist.sortOrder"
+const TABLE_SORT_STORAGE_KEY = "playlist.sortOrder";
 const DEFAULT_SORT_DIRECTIONS: Record<SortKey, TableSort["direction"]> = {
   title: "asc",
   artist: "asc",
@@ -120,35 +104,35 @@ const DEFAULT_SORT_DIRECTIONS: Record<SortKey, TableSort["direction"]> = {
   time: "desc",
   lastPlayed: "desc",
   dateAdded: "desc",
-}
-const SORT_KEYS = new Set<SortKey>(Object.keys(DEFAULT_SORT_DIRECTIONS) as SortKey[])
+};
+const SORT_KEYS = new Set<SortKey>(Object.keys(DEFAULT_SORT_DIRECTIONS) as SortKey[]);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value)
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const readStoredTableSorts = (): Record<string, TableSort> => {
   if (typeof window === "undefined") {
-    return {}
+    return {};
   }
 
   try {
-    const storedValue = window.localStorage.getItem(TABLE_SORT_STORAGE_KEY)
+    const storedValue = window.localStorage.getItem(TABLE_SORT_STORAGE_KEY);
     if (!storedValue) {
-      return {}
+      return {};
     }
 
-    const storedSorts: unknown = JSON.parse(storedValue)
+    const storedSorts: unknown = JSON.parse(storedValue);
     if (!isRecord(storedSorts)) {
-      return {}
+      return {};
     }
 
-    const sorts: Record<string, TableSort> = {}
+    const sorts: Record<string, TableSort> = {};
     for (const [playlistKey, storedSort] of Object.entries(storedSorts)) {
       if (!isRecord(storedSort)) {
-        continue
+        continue;
       }
 
-      const { key, direction } = storedSort
+      const { key, direction } = storedSort;
       if (
         typeof key === "string" &&
         SORT_KEYS.has(key as SortKey) &&
@@ -157,136 +141,117 @@ const readStoredTableSorts = (): Record<string, TableSort> => {
         sorts[playlistKey] = {
           key: key as SortKey,
           direction,
-        }
+        };
       }
     }
 
-    return sorts
+    return sorts;
   } catch {
-    return {}
+    return {};
   }
-}
+};
 
 const storeTableSorts = (sorts: Record<string, TableSort>) => {
   try {
-    window.localStorage.setItem(TABLE_SORT_STORAGE_KEY, JSON.stringify(sorts))
+    window.localStorage.setItem(TABLE_SORT_STORAGE_KEY, JSON.stringify(sorts));
   } catch {
     // Ignore storage failures (for example, private browsing restrictions).
   }
-}
+};
 
 type SongsColumnMeta = {
-  sortKey?: SortKey
-  headerClassName?: string
-  cellClassName?: string
-}
+  sortKey?: SortKey;
+  headerClassName?: string;
+  cellClassName?: string;
+};
 
 const playlistTableFeatures = tableFeatures({
   columnMeta: metaHelper<SongsColumnMeta>(),
-})
+});
 
-const getListeningSecondsForPlaylist = (
-  song: PlaylistSong,
-  playlist: ActivePlaylist,
-) => {
+const getListeningSecondsForPlaylist = (song: PlaylistSong, playlist: ActivePlaylist) => {
   if (playlist.type === "smart" && playlist.days) {
-    return "window_seconds" in song
-      ? (song.window_seconds as number | null)
-      : null
+    return "window_seconds" in song ? (song.window_seconds as number | null) : null;
   }
 
-  return "seconds_listened" in song
-    ? (song.seconds_listened as number | null)
-    : null
-}
+  return "seconds_listened" in song ? (song.seconds_listened as number | null) : null;
+};
 
-const applyTableSort = (
-  items: PlaylistSong[],
-  sort: TableSort,
-  playlist: ActivePlaylist,
-) => {
+const applyTableSort = (items: PlaylistSong[], sort: TableSort, playlist: ActivePlaylist) => {
   const toDateValue = (value?: string | null) => {
     if (!value) {
-      return null
+      return null;
     }
-    const time = new Date(value).getTime()
-    return Number.isNaN(time) ? null : time
-  }
+    const time = new Date(value).getTime();
+    return Number.isNaN(time) ? null : time;
+  };
 
   const getSortValue = (song: PlaylistSong) => {
     switch (sort.key) {
       case "title":
-        return getSongTitle(song)
+        return getSongTitle(song);
       case "artist":
-        return song.artist ?? null
+        return song.artist ?? null;
       case "album":
-        return song.album ?? null
+        return song.album ?? null;
       case "duration":
-        return song.duration ?? null
+        return song.duration ?? null;
       case "time":
-        return getListeningSecondsForPlaylist(song, playlist)
+        return getListeningSecondsForPlaylist(song, playlist);
       case "lastPlayed":
-        return "last_played" in song
-          ? toDateValue(song.last_played as string | null)
-          : null
+        return "last_played" in song ? toDateValue(song.last_played as string | null) : null;
       case "dateAdded":
-        return toDateValue(song.uploaded_at)
+        return toDateValue(song.uploaded_at);
       default:
-        return null
+        return null;
     }
-  }
+  };
 
-  const compareValues = (
-    first: string | number | null,
-    second: string | number | null,
-  ) => {
+  const compareValues = (first: string | number | null, second: string | number | null) => {
     if (first === null && second === null) {
-      return 0
+      return 0;
     }
     if (first === null) {
-      return 1
+      return 1;
     }
     if (second === null) {
-      return -1
+      return -1;
     }
     if (typeof first === "string" || typeof second === "string") {
       return String(first).localeCompare(String(second), undefined, {
         sensitivity: "base",
-      })
+      });
     }
-    return first - second
-  }
+    return first - second;
+  };
 
-  const direction = sort.direction === "asc" ? 1 : -1
+  const direction = sort.direction === "asc" ? 1 : -1;
 
   return [...items].sort((first, second) => {
-    const result = compareValues(getSortValue(first), getSortValue(second))
+    const result = compareValues(getSortValue(first), getSortValue(second));
     if (result !== 0) {
-      return result * direction
+      return result * direction;
     }
-    return getSongTitle(first).localeCompare(getSongTitle(second))
-  })
-}
+    return getSongTitle(first).localeCompare(getSongTitle(second));
+  });
+};
 
 type PlaylistSongsViewProps = {
-  playlist: ActivePlaylist
-  playlists: PlaylistSummary[]
-  playlistsLoading: boolean
-  playlistsError: boolean
-}
+  playlist: ActivePlaylist;
+  playlists: PlaylistSummary[];
+  playlistsLoading: boolean;
+  playlistsError: boolean;
+};
 
 type SongRowProps = {
-  row: Row<typeof playlistTableFeatures, PlaylistSong>
-  onSelect: (song: PlaylistSong) => void
-}
+  row: Row<typeof playlistTableFeatures, PlaylistSong>;
+  onSelect: (song: PlaylistSong) => void;
+};
 
 function SongRow({ row, onSelect }: SongRowProps) {
   const isSelected = usePlaybackStore(
-    useCallback(
-      (state) => state.currentSongId === row.original.id,
-      [row.original.id],
-    ),
-  )
+    useCallback((state) => state.currentSongId === row.original.id, [row.original.id]),
+  );
 
   return (
     <TableRow
@@ -295,30 +260,27 @@ function SongRow({ row, onSelect }: SongRowProps) {
       onClick={() => onSelect(row.original)}
     >
       {row.getAllCells().map((cell, cellIndex) => {
-        const meta = cell.column.columnDef.meta
+        const meta = cell.column.columnDef.meta;
         return (
-          <TableCell
-            key={cell.id}
-            className={cn(meta?.cellClassName, cellIndex === 0 && "pl-0")}
-          >
+          <TableCell key={cell.id} className={cn(meta?.cellClassName, cellIndex === 0 && "pl-0")}>
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </TableCell>
-        )
+        );
       })}
     </TableRow>
-  )
+  );
 }
 
 type SongActionsMenuProps = {
-  trackId: number
-  activePlaylist: ActivePlaylist
-  playlists: PlaylistSummary[]
-  playlistsLoading: boolean
-  playlistsError: boolean
-  onAddToPlaylist: (playlistId: number, trackId: number) => void
-  onRemoveFromPlaylist: (playlistId: number, trackId: number) => void
-  onDeleteSong: (trackId: number) => void
-}
+  trackId: number;
+  activePlaylist: ActivePlaylist;
+  playlists: PlaylistSummary[];
+  playlistsLoading: boolean;
+  playlistsError: boolean;
+  onAddToPlaylist: (playlistId: number, trackId: number) => void;
+  onRemoveFromPlaylist: (playlistId: number, trackId: number) => void;
+  onDeleteSong: (trackId: number) => void;
+};
 
 function SongActionsMenu({
   trackId,
@@ -330,37 +292,35 @@ function SongActionsMenu({
   onRemoveFromPlaylist,
   onDeleteSong,
 }: SongActionsMenuProps) {
-  const [open, setOpen] = useState(false)
-  const isCustomPlaylist = activePlaylist.type === "custom"
+  const [open, setOpen] = useState(false);
+  const isCustomPlaylist = activePlaylist.type === "custom";
   const handleAdd = useCallback(
     (playlistId: number) => {
-      onAddToPlaylist(playlistId, trackId)
-      setOpen(false)
+      onAddToPlaylist(playlistId, trackId);
+      setOpen(false);
     },
     [onAddToPlaylist, trackId],
-  )
+  );
   const handleRemove = useCallback(() => {
     if (activePlaylist.type !== "custom") {
-      return
+      return;
     }
-    onRemoveFromPlaylist(activePlaylist.id, trackId)
-    setOpen(false)
-  }, [activePlaylist, onRemoveFromPlaylist, trackId])
+    onRemoveFromPlaylist(activePlaylist.id, trackId);
+    setOpen(false);
+  }, [activePlaylist, onRemoveFromPlaylist, trackId]);
   const handleDelete = useCallback(() => {
-    const confirmed = window.confirm(
-      "Delete this song? This removes it from all playlists.",
-    )
+    const confirmed = window.confirm("Delete this song? This removes it from all playlists.");
     if (!confirmed) {
-      return
+      return;
     }
-    onDeleteSong(trackId)
-    setOpen(false)
-  }, [onDeleteSong, trackId])
+    onDeleteSong(trackId);
+    setOpen(false);
+  }, [onDeleteSong, trackId]);
   const playlistStatusMessage = getPlaylistStatusMessage({
     playlists,
     isLoading: playlistsLoading,
     isError: playlistsError,
-  })
+  });
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -401,8 +361,8 @@ function SongActionsMenu({
                   role="menuitem"
                   className="w-full justify-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
                   onClick={(event) => {
-                    event.stopPropagation()
-                    handleAdd(playlist.id)
+                    event.stopPropagation();
+                    handleAdd(playlist.id);
                   }}
                 >
                   Add to {playlist.name}
@@ -418,8 +378,8 @@ function SongActionsMenu({
                 role="menuitem"
                 className="w-full justify-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
                 onClick={(event) => {
-                  event.stopPropagation()
-                  handleRemove()
+                  event.stopPropagation();
+                  handleRemove();
                 }}
               >
                 Remove from {activePlaylist.name}
@@ -432,8 +392,8 @@ function SongActionsMenu({
               role="menuitem"
               className="text-destructive hover:text-destructive w-full justify-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-destructive/10"
               onClick={(event) => {
-                event.stopPropagation()
-                handleDelete()
+                event.stopPropagation();
+                handleDelete();
               }}
             >
               Delete song
@@ -442,7 +402,7 @@ function SongActionsMenu({
         </PopoverContent>
       ) : null}
     </Popover>
-  )
+  );
 }
 
 export function PlaylistSongsView({
@@ -451,116 +411,90 @@ export function PlaylistSongsView({
   playlistsLoading,
   playlistsError,
 }: PlaylistSongsViewProps) {
-  const startPlayback = usePlaybackStore((state) => state.startPlayback)
-  const restartCurrentSong = usePlaybackStore(
-    (state) => state.restartCurrentSong,
-  )
-  const setActivePlaylistSongIds = usePlaybackStore(
-    (state) => state.setActivePlaylistSongIds,
-  )
-  const activePlaylist = playlist
-  const playlistKey = getPlaylistKey(activePlaylist)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [tableSorts, setTableSorts] = useState<Record<string, TableSort>>(
-    readStoredTableSorts,
-  )
-  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null)
+  const startPlayback = usePlaybackStore((state) => state.startPlayback);
+  const restartCurrentSong = usePlaybackStore((state) => state.restartCurrentSong);
+  const setActivePlaylistSongIds = usePlaybackStore((state) => state.setActivePlaylistSongIds);
+  const activePlaylist = playlist;
+  const playlistKey = getPlaylistKey(activePlaylist);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [tableSorts, setTableSorts] = useState<Record<string, TableSort>>(readStoredTableSorts);
+  const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
   const setTableContainerRef = useCallback((element: HTMLDivElement | null) => {
-    setScrollElement(element)
-  }, [])
-  const tableSort = tableSorts[playlistKey] ?? null
+    setScrollElement(element);
+  }, []);
+  const tableSort = tableSorts[playlistKey] ?? null;
 
-  const {
-    data: songs = [],
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useSongsQuery(activePlaylist)
-  const addToPlaylistMutation = useAddTrackToPlaylistMutation()
-  const removeFromPlaylistMutation = useRemoveTrackFromPlaylistMutation()
-  const deleteSongMutation = useDeleteSongMutation()
+  const { data: songs = [], isLoading, isError, error, refetch } = useSongsQuery(activePlaylist);
+  const addToPlaylistMutation = useAddTrackToPlaylistMutation();
+  const removeFromPlaylistMutation = useRemoveTrackFromPlaylistMutation();
+  const deleteSongMutation = useDeleteSongMutation();
 
-  const normalizedSearch = searchQuery.trim().toLowerCase()
-  const hasSearch = normalizedSearch.length > 0
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const hasSearch = normalizedSearch.length > 0;
   const handleAddToPlaylist = useCallback(
     (playlistId: number, trackId: number) => {
-      addToPlaylistMutation.mutate({ playlistId, trackId })
+      addToPlaylistMutation.mutate({ playlistId, trackId });
     },
     [addToPlaylistMutation],
-  )
+  );
   const handleRemoveFromPlaylist = useCallback(
     (playlistId: number, trackId: number) => {
-      removeFromPlaylistMutation.mutate({ playlistId, trackId })
+      removeFromPlaylistMutation.mutate({ playlistId, trackId });
     },
     [removeFromPlaylistMutation],
-  )
+  );
   const handleDeleteSong = useCallback(
     (trackId: number) => {
-      deleteSongMutation.mutate(trackId)
+      deleteSongMutation.mutate(trackId);
     },
     [deleteSongMutation],
-  )
+  );
 
   const handleSort = (key: SortKey) => {
-    const current = tableSorts[playlistKey]
+    const current = tableSorts[playlistKey];
     const nextSort: TableSort =
       !current || current.key !== key
         ? { key, direction: DEFAULT_SORT_DIRECTIONS[key] }
         : {
             key,
             direction: current.direction === "asc" ? "desc" : "asc",
-        }
+          };
 
     const nextTableSorts = {
       ...tableSorts,
       [playlistKey]: nextSort,
-    }
-    setTableSorts(nextTableSorts)
-    storeTableSorts(nextTableSorts)
-  }
+    };
+    setTableSorts(nextTableSorts);
+    storeTableSorts(nextTableSorts);
+  };
 
   const activeSortedSongs = useMemo(() => {
     if (!tableSort) {
-      return songs
+      return songs;
     }
-    return applyTableSort(
-      songs,
-      tableSort,
-      activePlaylist,
-    )
-  }, [
-    songs,
-    tableSort,
-    activePlaylist,
-  ])
+    return applyTableSort(songs, tableSort, activePlaylist);
+  }, [songs, tableSort, activePlaylist]);
 
   const visibleSongs = useMemo(() => {
     if (!normalizedSearch) {
-      return activeSortedSongs
+      return activeSortedSongs;
     }
 
     const matches = (value?: string | null) =>
-      Boolean(value && value.toLowerCase().includes(normalizedSearch))
+      Boolean(value && value.toLowerCase().includes(normalizedSearch));
 
     return activeSortedSongs.filter((song) => {
-      const title = getSongTitle(song)
-      return (
-        matches(title) ||
-        matches(song.artist ?? null) ||
-        matches(song.album ?? null)
-      )
-    })
-  }, [activeSortedSongs, normalizedSearch])
+      const title = getSongTitle(song);
+      return matches(title) || matches(song.artist ?? null) || matches(song.album ?? null);
+    });
+  }, [activeSortedSongs, normalizedSearch]);
 
   const timeListenedLabel =
     activePlaylist.type === "smart" && activePlaylist.days
       ? `Time listened (${activePlaylist.days}d)`
-      : "Time listened"
+      : "Time listened";
 
-  const columns = useMemo<
-    ColumnDef<typeof playlistTableFeatures, PlaylistSong>[]
-  >(() => {
+  const columns = useMemo<ColumnDef<typeof playlistTableFeatures, PlaylistSong>[]>(() => {
     return [
       {
         id: "title",
@@ -609,9 +543,7 @@ export function PlaylistSongsView({
           headerClassName: "w-[120px]",
         } satisfies SongsColumnMeta,
         cell: ({ row }) =>
-          formatListeningTime(
-            getListeningSecondsForPlaylist(row.original, activePlaylist),
-          ),
+          formatListeningTime(getListeningSecondsForPlaylist(row.original, activePlaylist)),
       },
       {
         id: "lastPlayed",
@@ -622,9 +554,7 @@ export function PlaylistSongsView({
         } satisfies SongsColumnMeta,
         cell: ({ row }) =>
           formatDate(
-            "last_played" in row.original
-              ? (row.original.last_played as string | null)
-              : null,
+            "last_played" in row.original ? (row.original.last_played as string | null) : null,
           ),
       },
       {
@@ -655,10 +585,10 @@ export function PlaylistSongsView({
               onRemoveFromPlaylist={handleRemoveFromPlaylist}
               onDeleteSong={handleDeleteSong}
             />
-          )
+          );
         },
       },
-    ]
+    ];
   }, [
     activePlaylist,
     timeListenedLabel,
@@ -668,21 +598,17 @@ export function PlaylistSongsView({
     handleAddToPlaylist,
     handleRemoveFromPlaylist,
     handleDeleteSong,
-  ])
+  ]);
 
   const table = useTable({
     features: playlistTableFeatures,
     data: visibleSongs,
     columns,
     getRowId: (row) => String(row.id),
-  })
+  });
 
-  const rows = table.getRowModel().rows
-  const getRowKey = useCallback(
-    (index: number) => rows[index]?.id ?? index,
-    [rows],
-  )
-  // eslint-disable-next-line react-hooks/incompatible-library
+  const rows = table.getRowModel().rows;
+  const getRowKey = useCallback((index: number) => rows[index]?.id ?? index, [rows]);
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollElement,
@@ -690,47 +616,44 @@ export function PlaylistSongsView({
     overscan: 30,
     getItemKey: getRowKey,
     enabled: Boolean(scrollElement),
-  })
-  const virtualRows = scrollElement ? rowVirtualizer.getVirtualItems() : []
-  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0
+  });
+  const virtualRows = scrollElement ? rowVirtualizer.getVirtualItems() : [];
+  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
   const paddingBottom =
     virtualRows.length > 0
-      ? rowVirtualizer.getTotalSize() -
-      virtualRows[virtualRows.length - 1].end
-      : 0
+      ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end
+      : 0;
   const activeSortedIds = useMemo(
     () => activeSortedSongs.map((song) => song.id),
     [activeSortedSongs],
-  )
+  );
 
   useEffect(() => {
-    setActivePlaylistSongIds(activeSortedIds)
-  }, [activeSortedIds, setActivePlaylistSongIds])
+    setActivePlaylistSongIds(activeSortedIds);
+  }, [activeSortedIds, setActivePlaylistSongIds]);
 
   const handleSelectSong = useCallback(
     (song: PlaylistSong) => {
-      const { currentSongId } = usePlaybackStore.getState()
+      const { currentSongId } = usePlaybackStore.getState();
       if (currentSongId === song.id) {
-        restartCurrentSong()
-        return
+        restartCurrentSong();
+        return;
       }
 
       startPlayback({
         playlist: activePlaylist,
         songIds: activeSortedIds,
         songId: song.id,
-      })
+      });
     },
     [activePlaylist, activeSortedIds, restartCurrentSong, startPlayback],
-  )
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pt-3">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">
-            {activePlaylist.name}
-          </h1>
+          <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{activePlaylist.name}</h1>
           <div className="flex min-w-0 shrink-0 items-center justify-end gap-3">
             <div className="shrink-0 text-xs text-muted-foreground">
               {isLoading
@@ -779,36 +702,29 @@ export function PlaylistSongsView({
           </div>
         ) : (
           <div className="[overflow-anchor:none] flex min-h-0 flex-1 flex-col bg-background/65">
-            <div
-              ref={setTableContainerRef}
-              className="relative flex-1 overflow-auto"
-            >
+            <div ref={setTableContainerRef} className="relative flex-1 overflow-auto">
               <Table className="table-fixed" containerClassName="overflow-visible">
                 <TableHeader className="sticky top-0 z-10 bg-background/95">
                   {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="bg-background/95 hover:bg-background/95">
+                    <TableRow
+                      key={headerGroup.id}
+                      className="bg-background/95 hover:bg-background/95"
+                    >
                       {headerGroup.headers.map((header, headerIndex) => {
-                        const meta = header.column.columnDef.meta
-                        const sortKey = meta?.sortKey
-                        const isActive = sortKey
-                          ? tableSort?.key === sortKey
-                          : false
-                        const direction = isActive
-                          ? tableSort?.direction
-                          : null
+                        const meta = header.column.columnDef.meta;
+                        const sortKey = meta?.sortKey;
+                        const isActive = sortKey ? tableSort?.key === sortKey : false;
+                        const direction = isActive ? tableSort?.direction : null;
                         const ariaSort = sortKey
                           ? isActive
                             ? direction === "asc"
                               ? "ascending"
                               : "descending"
                             : "none"
-                          : undefined
+                          : undefined;
                         const headerLabel = header.isPlaceholder
                           ? null
-                          : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )
+                          : flexRender(header.column.columnDef.header, header.getContext());
 
                         return (
                           <TableHead
@@ -840,7 +756,7 @@ export function PlaylistSongsView({
                               headerLabel
                             )}
                           </TableHead>
-                        )
+                        );
                       })}
                     </TableRow>
                   ))}
@@ -856,17 +772,11 @@ export function PlaylistSongsView({
                     </TableRow>
                   ) : null}
                   {virtualRows.map((virtualRow) => {
-                    const row = rows[virtualRow.index]
+                    const row = rows[virtualRow.index];
                     if (!row) {
-                      return null
+                      return null;
                     }
-                    return (
-                      <SongRow
-                        key={row.id}
-                        row={row}
-                        onSelect={handleSelectSong}
-                      />
-                    )
+                    return <SongRow key={row.id} row={row} onSelect={handleSelectSong} />;
                   })}
                   {paddingBottom > 0 ? (
                     <TableRow className="border-0 hover:bg-transparent">
@@ -884,5 +794,5 @@ export function PlaylistSongsView({
         )}
       </div>
     </div>
-  )
+  );
 }

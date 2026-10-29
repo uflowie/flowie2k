@@ -1,17 +1,28 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" },
-    { "path": "./tsconfig.worker.json" }
-],
-"compilerOptions": {
-    "types": [
-        "./worker-configuration.d.ts",
-        "node"
-    ],
+  "extends": "./.void/tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["void/env", "node"],
+    "jsx": "react-jsx",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    // `@/*` is the shadcn alias. Setting `paths` replaces the ones from
+    // .void/tsconfig.json, so Void's aliases are repeated here.
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@schema": ["./db/schema.ts"],
+      "@schema/*": ["./db/schema/*"],
+      "void/db": ["./.void/db.d.ts"],
+      "void/routes": ["./.void/routes.d.ts"]
     }
-}
+  },
+  "include": ["src", "routes", "middleware", "db", "env.ts", "vite.config.ts", "void.config.ts"]
 }

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react"
-import { Columns3 } from "lucide-react"
+import { useEffect, useState } from "react";
+import { Columns3 } from "lucide-react";
 
-import { Slider } from "@/components/ui/slider"
+import { Slider } from "@/components/ui/slider";
 import {
   APPEARANCE_CHANGE_EVENT,
   MAX_PLAYLIST_WIDTH,
@@ -10,21 +10,16 @@ import {
   readStoredPlaylistWidth,
   setPlaylistWidth,
   storePlaylistWidth,
-} from "@/react-app/lib/appearance"
+} from "@/react-app/lib/appearance";
 
 export function PlaylistWidthSlider() {
-  const [width, setWidth] = useState(readStoredPlaylistWidth)
+  const [width, setWidth] = useState(readStoredPlaylistWidth);
 
   useEffect(() => {
-    const handleAppearanceChange = () =>
-      setWidth(readStoredPlaylistWidth())
-    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange)
-    return () =>
-      window.removeEventListener(
-        APPEARANCE_CHANGE_EVENT,
-        handleAppearanceChange,
-      )
-  }, [])
+    const handleAppearanceChange = () => setWidth(readStoredPlaylistWidth());
+    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
+    return () => window.removeEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
+  }, []);
 
   return (
     <div className="space-y-2 rounded-sm p-1.5 text-xs hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
@@ -39,22 +34,22 @@ export function PlaylistWidthSlider() {
         step={1}
         value={[width]}
         onValueChange={(values) => {
-          const nextWidth = values[0]
+          const nextWidth = values[0];
           if (typeof nextWidth !== "number") {
-            return
+            return;
           }
-          setWidth(nextWidth)
-          setPlaylistWidth(nextWidth)
+          setWidth(nextWidth);
+          setPlaylistWidth(nextWidth);
         }}
         onValueCommit={(values) => {
-          const nextWidth = values[0]
+          const nextWidth = values[0];
           if (typeof nextWidth === "number") {
-            storePlaylistWidth(nextWidth)
-            notifyAppearanceChange("customization")
+            storePlaylistWidth(nextWidth);
+            notifyAppearanceChange("customization");
           }
         }}
         aria-label="Playlist width"
       />
     </div>
-  )
+  );
 }

@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react"
-import { Save, Trash2 } from "lucide-react"
+import { useEffect, useState } from "react";
+import { Save, Trash2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { SidebarMenuItem } from "@/components/ui/sidebar"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SidebarMenuItem } from "@/components/ui/sidebar";
 import {
   applyAppearancePreset,
   getCurrentAppearance,
@@ -12,74 +12,65 @@ import {
   APPEARANCE_CHANGE_EVENT,
   type AppearanceChangeSource,
   type AppearancePreset,
-} from "@/react-app/lib/appearance"
+} from "@/react-app/lib/appearance";
 
-const getPresetKey = (name: string) => name.trim().toLocaleLowerCase()
+const getPresetKey = (name: string) => name.trim().toLocaleLowerCase();
 
 export function AppearancePresets() {
-  const [presets, setPresets] = useState<AppearancePreset[]>(
-    readAppearancePresets,
-  )
-  const [name, setName] = useState("")
-  const [selectedName, setSelectedName] = useState("")
+  const [presets, setPresets] = useState<AppearancePreset[]>(readAppearancePresets);
+  const [name, setName] = useState("");
+  const [selectedName, setSelectedName] = useState("");
 
   useEffect(() => {
     const handleAppearanceChange = (event: Event) => {
-      const source = (event as CustomEvent<{ source?: AppearanceChangeSource }>).detail
-        ?.source
+      const source = (event as CustomEvent<{ source?: AppearanceChangeSource }>).detail?.source;
       if (source === "customization") {
-        setSelectedName("")
+        setSelectedName("");
       }
-    }
+    };
 
-    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange)
-    return () =>
-      window.removeEventListener(
-        APPEARANCE_CHANGE_EVENT,
-        handleAppearanceChange,
-      )
-  }, [])
+    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
+    return () => window.removeEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
+  }, []);
 
   const handleSave = () => {
-    const trimmedName = name.trim()
+    const trimmedName = name.trim();
     if (!trimmedName) {
-      return
+      return;
     }
 
     const nextPreset: AppearancePreset = {
       name: trimmedName,
       ...getCurrentAppearance(),
-    }
+    };
     const nextPresets = [
-      ...presets.filter(
-        (preset) => getPresetKey(preset.name) !== getPresetKey(trimmedName),
-      ),
+      ...presets.filter((preset) => getPresetKey(preset.name) !== getPresetKey(trimmedName)),
       nextPreset,
-    ]
-    setPresets(nextPresets)
-    storeAppearancePresets(nextPresets)
-    setSelectedName(trimmedName)
-    setName("")
-  }
+    ];
+    setPresets(nextPresets);
+    storeAppearancePresets(nextPresets);
+    setSelectedName(trimmedName);
+    setName("");
+  };
 
   const handlePresetChange = (presetName: string) => {
-    setSelectedName(presetName)
+    setSelectedName(presetName);
     const selectedPreset = presets.find(
       (preset) => getPresetKey(preset.name) === getPresetKey(presetName),
-    )
+    );
     if (selectedPreset) {
-      applyAppearancePreset(selectedPreset)
+      applyAppearancePreset(selectedPreset);
     }
-  }
+  };
 
   const handleDelete = () => {
     const nextPresets = presets.filter(
       (preset) => getPresetKey(preset.name) !== getPresetKey(selectedName),
-    )
-    setPresets(nextPresets)
-    storeAppearancePresets(nextPresets)
-    setSelectedName("")
-  }
+    );
+    setPresets(nextPresets);
+    storeAppearancePresets(nextPresets);
+    setSelectedName("");
+  };
 
   return (
     <>
@@ -108,8 +99,8 @@ export function AppearancePresets() {
               onChange={(event) => setName(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
-                  event.preventDefault()
-                  handleSave()
+                  event.preventDefault();
+                  handleSave();
                 }
               }}
               placeholder="New preset name"
@@ -145,5 +136,5 @@ export function AppearancePresets() {
         </SidebarMenuItem>
       ) : null}
     </>
-  )
+  );
 }

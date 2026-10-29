@@ -1,43 +1,37 @@
-# prod
-dist/
+# Void defaults
+node_modules
+dist
+.void
+.wrangler
+.void-wrangler.jsonc
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+.DS_Store
 
-# dev
-.yarn/
-!.yarn/releases
+# Editors
 .vscode/*
 !.vscode/launch.json
 !.vscode/*.code-snippets
 .idea/workspace.xml
 .idea/usage.statistics.xml
 .idea/shelf
-full_stack_example/
-/scripts/
 
-# deps
-node_modules/
-.wrangler
-
-# env
-.env*
-.dev.vars*
-
-# logs
+# Logs
 logs/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-# misc
-.DS_Store
-
-# tests
+# Tests
 playwright-report/
 test-results/
 
+# TanStack Router
 .tanstack/
+
+# Local-only folders
+full_stack_example/
+/scripts/
 
 # Local artwork library
 src/react-app/assets/artwork/*

@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react"
-import { Sparkles } from "lucide-react"
+import { useEffect, useState } from "react";
+import { Sparkles } from "lucide-react";
 
-import { SidebarMenuItem } from "@/components/ui/sidebar"
+import { SidebarMenuItem } from "@/components/ui/sidebar";
 import {
   APPEARANCE_CHANGE_EVENT,
   readStoredArtworkColor,
@@ -14,21 +14,16 @@ import {
   storeArtworkColor,
   storeBackgroundColor,
   storeFontColor,
-} from "@/react-app/lib/appearance"
+} from "@/react-app/lib/appearance";
 
 type ColorPickerRowProps = {
-  id: string
-  label: string
-  color: string
-  onColorChange: (color: string) => void
-}
+  id: string;
+  label: string;
+  color: string;
+  onColorChange: (color: string) => void;
+};
 
-function ColorPickerRow({
-  id,
-  label,
-  color,
-  onColorChange,
-}: ColorPickerRowProps) {
+function ColorPickerRow({ id, label, color, onColorChange }: ColorPickerRowProps) {
   return (
     <label className="flex h-7 w-full items-center gap-2 rounded-sm p-1.5 text-left text-xs outline-hidden transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
       <input
@@ -41,137 +36,121 @@ function ColorPickerRow({
       />
       <span className="truncate">{label}</span>
     </label>
-  )
+  );
 }
 
 type AppearanceColors = {
-  background: string
-  font: string
-  artwork: string
-}
+  background: string;
+  font: string;
+  artwork: string;
+};
 
 const readStoredColors = (): AppearanceColors => ({
   background: readStoredBackgroundColor(),
   font: readStoredFontColor(),
   artwork: readStoredArtworkColor(),
-})
+});
 
 const randomInteger = (min: number, max: number) =>
-  Math.floor(Math.random() * (max - min + 1)) + min
+  Math.floor(Math.random() * (max - min + 1)) + min;
 
 const channelToHex = (channel: number) =>
   Math.round(channel * 255)
     .toString(16)
-    .padStart(2, "0")
+    .padStart(2, "0");
 
 const hslToHex = (hue: number, saturation: number, lightness: number) => {
-  const normalizedHue = ((hue % 360) + 360) % 360
-  const normalizedSaturation = saturation / 100
-  const normalizedLightness = lightness / 100
-  const chroma =
-    (1 - Math.abs(2 * normalizedLightness - 1)) * normalizedSaturation
-  const hueSection = normalizedHue / 60
-  const secondary = chroma * (1 - Math.abs((hueSection % 2) - 1))
+  const normalizedHue = ((hue % 360) + 360) % 360;
+  const normalizedSaturation = saturation / 100;
+  const normalizedLightness = lightness / 100;
+  const chroma = (1 - Math.abs(2 * normalizedLightness - 1)) * normalizedSaturation;
+  const hueSection = normalizedHue / 60;
+  const secondary = chroma * (1 - Math.abs((hueSection % 2) - 1));
 
-  let red = 0
-  let green = 0
-  let blue = 0
+  let red = 0;
+  let green = 0;
+  let blue = 0;
 
   if (hueSection < 1) {
-    red = chroma
-    green = secondary
+    red = chroma;
+    green = secondary;
   } else if (hueSection < 2) {
-    red = secondary
-    green = chroma
+    red = secondary;
+    green = chroma;
   } else if (hueSection < 3) {
-    green = chroma
-    blue = secondary
+    green = chroma;
+    blue = secondary;
   } else if (hueSection < 4) {
-    green = secondary
-    blue = chroma
+    green = secondary;
+    blue = chroma;
   } else if (hueSection < 5) {
-    red = secondary
-    blue = chroma
+    red = secondary;
+    blue = chroma;
   } else {
-    red = chroma
-    blue = secondary
+    red = chroma;
+    blue = secondary;
   }
 
-  const lightnessMatch = normalizedLightness - chroma / 2
-  return `#${channelToHex(red + lightnessMatch)}${channelToHex(green + lightnessMatch)}${channelToHex(blue + lightnessMatch)}`
-}
+  const lightnessMatch = normalizedLightness - chroma / 2;
+  return `#${channelToHex(red + lightnessMatch)}${channelToHex(green + lightnessMatch)}${channelToHex(blue + lightnessMatch)}`;
+};
 
 const createLuckyColors = (): AppearanceColors => {
-  const baseHue = randomInteger(0, 359)
+  const baseHue = randomInteger(0, 359);
   return {
-    background: hslToHex(
-      baseHue,
-      randomInteger(18, 42),
-      randomInteger(7, 15),
-    ),
-    font: hslToHex(
-      baseHue + randomInteger(-15, 15),
-      randomInteger(8, 24),
-      randomInteger(82, 94),
-    ),
+    background: hslToHex(baseHue, randomInteger(18, 42), randomInteger(7, 15)),
+    font: hslToHex(baseHue + randomInteger(-15, 15), randomInteger(8, 24), randomInteger(82, 94)),
     artwork: hslToHex(
       baseHue + randomInteger(40, 160),
       randomInteger(35, 70),
       randomInteger(52, 72),
     ),
-  }
-}
+  };
+};
 
 const applyAndStoreColors = (colors: AppearanceColors) => {
-  setBackgroundColor(colors.background)
-  setFontColor(colors.font)
-  setArtworkColor(colors.artwork)
-  storeBackgroundColor(colors.background)
-  storeFontColor(colors.font)
-  storeArtworkColor(colors.artwork)
-  notifyAppearanceChange("customization")
-}
+  setBackgroundColor(colors.background);
+  setFontColor(colors.font);
+  setArtworkColor(colors.artwork);
+  storeBackgroundColor(colors.background);
+  storeFontColor(colors.font);
+  storeArtworkColor(colors.artwork);
+  notifyAppearanceChange("customization");
+};
 
 export function AppearanceColorControls() {
-  const [colors, setColors] = useState(readStoredColors)
+  const [colors, setColors] = useState(readStoredColors);
 
   useEffect(() => {
-    const handleAppearanceChange = () => setColors(readStoredColors())
-    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange)
-    return () =>
-      window.removeEventListener(
-        APPEARANCE_CHANGE_EVENT,
-        handleAppearanceChange,
-      )
-  }, [])
+    const handleAppearanceChange = () => setColors(readStoredColors());
+    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
+    return () => window.removeEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
+  }, []);
 
-  const updateColor = (
-    colorName: keyof AppearanceColors,
-    color: string,
-  ) => {
+  const updateColor = (colorName: keyof AppearanceColors, color: string) => {
     setColors((currentColors) => ({
       ...currentColors,
       [colorName]: color,
-    }))
+    }));
 
     if (colorName === "background") {
-      setBackgroundColor(color)
-      storeBackgroundColor(color)
+      setBackgroundColor(color);
+      storeBackgroundColor(color);
     } else if (colorName === "font") {
-      setFontColor(color)
-      storeFontColor(color)
+      setFontColor(color);
+      storeFontColor(color);
     } else {
-      setArtworkColor(color)
-      storeArtworkColor(color)
+      setArtworkColor(color);
+      storeArtworkColor(color);
     }
-    notifyAppearanceChange("customization")
-  }
+    notifyAppearanceChange("customization");
+  };
 
   const handleFeelingLucky = () => {
-    const luckyColors = createLuckyColors()
-    setColors(luckyColors)
-    applyAndStoreColors(luckyColors)
-  }
+    const luckyColors = createLuckyColors();
+    setColors(luckyColors);
+    applyAndStoreColors(luckyColors);
+  };
 
   return (
     <>
@@ -210,5 +189,5 @@ export function AppearanceColorControls() {
         </button>
       </SidebarMenuItem>
     </>
-  )
+  );
 }

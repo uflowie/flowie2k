@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "source": {
+    "name": "flowie2k",
+    "observability": {
+      "enabled": true
+    },
+    "upload_source_maps": true,
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "music-server-db",
+        "database_id": "b68356ae-2253-48b3-86c5-d53878a6dc85"
+      }
+    ],
+    "r2_buckets": [
+      {
+        "binding": "STORAGE",
+        "bucket_name": "music-server-storage",
+        "local_dev": {
+          "experimental_s3_credentials": {
+            "accessKeyId": "flowie2k-local",
+            "secretAccessKey": "flowie2k-local-development-only"
+          }
+        }
+      }
+    ]
+  },
+  "resolved": {
+    "name": "flowie2k",
+    "observability": {
+      "enabled": true
+    },
+    "upload_source_maps": true,
+    "r2_buckets": [
+      {
+        "binding": "STORAGE",
+        "bucket_name": "music-server-storage",
+        "local_dev": {
+          "experimental_s3_credentials": {
+            "accessKeyId": "flowie2k-local",
+            "secretAccessKey": "flowie2k-local-development-only"
+          }
+        }
+      }
+    ],
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "music-server-db",
+        "database_id": "b68356ae-2253-48b3-86c5-d53878a6dc85"
+      }
+    ]
+  },
+  "text": "{\n  \"name\": \"flowie2k\",\n  \"observability\": {\n    \"enabled\": true\n  },\n  \"upload_source_maps\": true,\n  \"r2_buckets\": [\n    {\n      \"binding\": \"STORAGE\",\n      \"bucket_name\": \"music-server-storage\",\n      \"local_dev\": {\n        \"experimental_s3_credentials\": {\n          \"accessKeyId\": \"flowie2k-local\",\n          \"secretAccessKey\": \"flowie2k-local-development-only\"\n        }\n      }\n    }\n  ],\n  \"d1_databases\": [\n    {\n      \"binding\": \"DB\",\n      \"database_name\": \"music-server-db\",\n      \"database_id\": \"b68356ae-2253-48b3-86c5-d53878a6dc85\"\n    }\n  ]\n}\n"
+}

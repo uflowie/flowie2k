@@ -1,8 +1,8 @@
-import { createRootRoute, Outlet } from '@tanstack/react-router'
-import { SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { Toaster } from "@/components/ui/sonner"
-import { PlaybackControls } from "@/react-app/components/playback-controls"
+import { createRootRoute, Outlet } from "@tanstack/react-router";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { Toaster } from "@/components/ui/sonner";
+import { PlaybackControls } from "@/react-app/components/playback-controls";
 
 const RootLayout = () => (
   <>
@@ -24,6 +24,6 @@ const RootLayout = () => (
     </div>
     <Toaster />
   </>
-)
+);
 
-export const Route = createRootRoute({ component: RootLayout })
+export const Route = createRootRoute({ component: RootLayout });

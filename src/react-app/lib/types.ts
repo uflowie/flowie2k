@@ -1,24 +1,16 @@
-import type { InferResponseType } from "hono/client"
+import type { RouteMap } from "void/routes";
 
-type HonoClient = typeof import("./queries").honoClient
+type Output<P extends keyof RouteMap, M extends keyof RouteMap[P]> = RouteMap[P][M] extends {
+  output: infer O;
+}
+  ? O
+  : never;
 
-export type SongsResponse = InferResponseType<HonoClient["api"]["songs"]["$get"]>
-export type SongsPayload = Extract<SongsResponse, { songs: unknown }>
+export type SongsPayload = Output<"/api/songs", "GET">;
+export type PlaylistsPayload = Output<"/api/playlists", "GET">;
+export type PlaylistTracksPayload = Output<"/api/playlists/:id/tracks", "GET">;
 
-export type PlaylistsResponse = InferResponseType<
-  HonoClient["api"]["playlists"]["$get"]
->
-export type PlaylistsPayload = Extract<PlaylistsResponse, { playlists: unknown }>
-
-export type PlaylistTracksResponse = InferResponseType<
-  HonoClient["api"]["playlists"][":id"]["tracks"]["$get"]
->
-export type PlaylistTracksPayload = Extract<
-  PlaylistTracksResponse,
-  { tracks: unknown }
->
-
-export type PlaylistSummary = PlaylistsPayload["playlists"][number]
-export type Song = SongsPayload["songs"][number]
-export type PlaylistTrack = PlaylistTracksPayload["tracks"][number]
-export type PlaylistSong = Song | PlaylistTrack
+export type PlaylistSummary = PlaylistsPayload["playlists"][number];
+export type Song = SongsPayload["songs"][number];
+export type PlaylistTrack = PlaylistTracksPayload["tracks"][number];
+export type PlaylistSong = Song | PlaylistTrack;

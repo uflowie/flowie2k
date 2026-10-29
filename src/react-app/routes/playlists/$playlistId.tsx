@@ -1,46 +1,43 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { useEffect, useMemo } from "react"
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo } from "react";
 
-import {
-  getPlaylistKey,
-  resolvePlaylist,
-} from "@/react-app/lib/playlists"
-import { usePlaylistsQuery } from "@/react-app/lib/queries"
-import { usePlaybackStore } from "@/react-app/lib/playback-store"
-import { PlaylistSongsView } from "@/react-app/components/playlist-songs-view"
-import type { PlaylistSummary } from "@/react-app/lib/types"
+import { getPlaylistKey, resolvePlaylist } from "@/react-app/lib/playlists";
+import { usePlaylistsQuery } from "@/react-app/lib/queries";
+import { usePlaybackStore } from "@/react-app/lib/playback-store";
+import { PlaylistSongsView } from "@/react-app/components/playlist-songs-view";
+import type { PlaylistSummary } from "@/react-app/lib/types";
 
-const EMPTY_PLAYLISTS: PlaylistSummary[] = []
+const EMPTY_PLAYLISTS: PlaylistSummary[] = [];
 
 export const Route = createFileRoute("/playlists/$playlistId")({
   component: PlaylistRoute,
-})
+});
 
 function PlaylistRoute() {
-  const { playlistId } = Route.useParams()
+  const { playlistId } = Route.useParams();
   const {
     data: playlistsResponse,
     isLoading: playlistsLoading,
     isError: playlistsError,
-  } = usePlaylistsQuery()
-  const playlists = playlistsResponse?.playlists ?? EMPTY_PLAYLISTS
+  } = usePlaylistsQuery();
+  const playlists = playlistsResponse?.playlists ?? EMPTY_PLAYLISTS;
   const resolvedPlaylist = useMemo(
     () => resolvePlaylist(playlistId, playlists),
     [playlistId, playlists],
-  )
-  const playlistKey = getPlaylistKey(resolvedPlaylist)
-  const activePlaylist = usePlaybackStore((state) => state.activePlaylist)
-  const setActivePlaylist = usePlaybackStore((state) => state.setActivePlaylist)
+  );
+  const playlistKey = getPlaylistKey(resolvedPlaylist);
+  const activePlaylist = usePlaybackStore((state) => state.activePlaylist);
+  const setActivePlaylist = usePlaybackStore((state) => state.setActivePlaylist);
 
   useEffect(() => {
     if (
       getPlaylistKey(activePlaylist) === playlistKey &&
       activePlaylist.name === resolvedPlaylist.name
     ) {
-      return
+      return;
     }
-    setActivePlaylist(resolvedPlaylist)
-  }, [activePlaylist, playlistKey, resolvedPlaylist, setActivePlaylist])
+    setActivePlaylist(resolvedPlaylist);
+  }, [activePlaylist, playlistKey, resolvedPlaylist, setActivePlaylist]);
 
   return (
     <PlaylistSongsView
@@ -50,5 +47,5 @@ function PlaylistRoute() {
       playlistsLoading={playlistsLoading}
       playlistsError={playlistsError}
     />
-  )
+  );
 }
