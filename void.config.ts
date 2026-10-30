@@ -7,6 +7,11 @@ export default defineConfig({
   },
   cloudflare: {
     name: "flowie2k",
+    account_id: "dde4706e29038f1d8466e82f2f91603b",
+    // Serve at flowie2k.<subdomain>.workers.dev; preview URLs let Void
+    // health-check new versions before they get traffic.
+    workers_dev: true,
+    preview_urls: true,
     observability: {
       enabled: true,
     },
@@ -17,7 +22,7 @@ export default defineConfig({
       {
         binding: "DB",
         database_name: "music-server-db",
-        database_id: "b68356ae-2253-48b3-86c5-d53878a6dc85",
+        database_id: "bb28ec25-ac20-4408-a3d3-d4e6a51c0bdc",
       },
     ],
     r2_buckets: [
