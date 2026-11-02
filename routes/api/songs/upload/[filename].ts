@@ -5,6 +5,7 @@ import { db, sql } from "void/db";
 import { storage } from "void/storage";
 import { z } from "zod";
 
+import { audioMimeType } from "@/server/media";
 import { storeCover } from "@/server/thumbnails";
 
 // POST /api/songs/upload/:filename — raw file bytes in the request body
@@ -14,10 +15,11 @@ export const POST = defineHandler.withValidator({
   const extension = filename.match(/\.[^/.]+$/)?.[0] ?? "";
   const baseId = crypto.randomUUID();
   const storageKey = `tracks/${baseId}${extension}`;
+  const mimeType = audioMimeType(filename);
   const body = await c.req.arrayBuffer();
 
   await storage.put(storageKey, body, {
-    httpMetadata: { contentType: "audio/mpeg" },
+    httpMetadata: { contentType: mimeType },
   });
 
   let metadata: Partial<IAudioMetadata["common"]> = {};
@@ -44,7 +46,7 @@ export const POST = defineHandler.withValidator({
     genre: metadata.genre?.[0] ?? null,
     duration: durationSeconds !== null ? Math.round(durationSeconds) : null,
     file_size: body.byteLength,
-    mime_type: "audio/mpeg",
+    mime_type: mimeType,
     thumbnail_path: thumbnailPath,
   };
 

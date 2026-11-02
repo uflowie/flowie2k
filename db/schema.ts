@@ -1,5 +1,5 @@
 import { sql } from "void/db";
-import { index, integer, sqliteTable, text, unique } from "void/schema-d1";
+import { index, integer, real, sqliteTable, text, unique } from "void/schema-d1";
 
 // Keys match the column names so API responses keep their snake_case shape.
 
@@ -20,6 +20,8 @@ export const tracks = sqliteTable(
     thumbnail_path: text("thumbnail_path"),
     seconds_listened: integer("seconds_listened").notNull().default(0),
     last_played: text("last_played"),
+    // Measured integrated loudness, for evening out volume at playback.
+    loudness_lufs: real("loudness_lufs"),
   },
   (t) => [
     index("idx_tracks_filename").on(t.filename),
