@@ -86,6 +86,18 @@ const toggleControlClass = (active: boolean) =>
       : "text-foreground/55 hover:text-foreground after:bg-foreground/25",
   ].join(" ");
 
+// Album art for the current song; falls back to the music icon if it can't load.
+function CoverImage({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return <Music className="size-4 text-foreground/60" />;
+  }
+  // Decorative: the song title is shown right next to it.
+  return (
+    <img src={src} alt="" className="size-full object-cover" onError={() => setFailed(true)} />
+  );
+}
+
 export function PlaybackControls() {
   const playbackPlaylist = usePlaybackStore((state) => state.playbackPlaylist);
   const {
@@ -175,7 +187,7 @@ export function PlaybackControls() {
       ...(currentArtistLabel ? { artist: currentArtistLabel } : {}),
       ...(currentAlbumLabel ? { album: currentAlbumLabel } : {}),
       ...(currentSong.thumbnail_path
-        ? { artwork: [{ src: getThumbnailUrl(currentSong.id) }] }
+        ? { artwork: [{ src: getThumbnailUrl(currentSong.thumbnail_path) }] }
         : {}),
     });
   }, [currentAlbumLabel, currentArtistLabel, currentSong]);
@@ -406,8 +418,15 @@ export function PlaybackControls() {
     <div className="bg-background px-3 py-2">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(28rem,44rem)_minmax(0,1fr)] lg:items-center">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-muted/30">
-            <Music className="size-4 text-foreground/60" />
+          <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted/30">
+            {currentSong?.thumbnail_path ? (
+              <CoverImage
+                key={currentSong.thumbnail_path}
+                src={getThumbnailUrl(currentSong.thumbnail_path)}
+              />
+            ) : (
+              <Music className="size-4 text-foreground/60" />
+            )}
           </div>
           <div className="flex min-w-0 flex-1 flex-col justify-center space-y-0.5">
             <p className="truncate text-sm font-medium">{currentSongLabel}</p>

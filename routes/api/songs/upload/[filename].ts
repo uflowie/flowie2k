@@ -5,6 +5,8 @@ import { db, sql } from "void/db";
 import { storage } from "void/storage";
 import { z } from "zod";
 
+import { storeCover } from "@/server/thumbnails";
+
 // POST /api/songs/upload/:filename — raw file bytes in the request body
 export const POST = defineHandler.withValidator({
   params: z.object({ filename: z.string().min(1, { message: "Filename is required" }) }),
@@ -27,13 +29,7 @@ export const POST = defineHandler.withValidator({
     metadata = parsed.common;
     durationSeconds = parsed.format.duration ?? null;
 
-    const picture = parsed.common.picture?.[0];
-    if (picture) {
-      thumbnailPath = `thumbnails/${baseId}.${picture.format.split("/")[1] || "jpg"}`;
-      await storage.put(thumbnailPath, picture.data, {
-        httpMetadata: { contentType: picture.format },
-      });
-    }
+    thumbnailPath = await storeCover(parsed.common.picture);
   } catch (error) {
     // Keep the upload with basic info if metadata can't be read.
     console.error(`[UPLOAD] Failed to extract metadata from ${filename}:`, error);
