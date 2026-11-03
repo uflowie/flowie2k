@@ -8,9 +8,10 @@ import { RouterProvider, createRouter } from "@tanstack/react-router";
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
 import { startListenTracker } from "@/react-app/lib/listen-tracker";
-import { applyStoredAppearance } from "@/react-app/lib/appearance";
+import { applyAppearance, readAppearance } from "@/react-app/lib/appearance";
 
-applyStoredAppearance();
+// Apply the saved look before the first render to avoid a flash of the default colors.
+applyAppearance(readAppearance());
 
 // Create a new router instance
 const router = createRouter({ routeTree });

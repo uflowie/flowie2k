@@ -1,17 +1,13 @@
-const BACKGROUND_STORAGE_KEY = "appearance.backgroundColor";
-const BACKGROUND_LEGACY_STORAGE_KEY = "debug.backgroundColor";
-const FONT_STORAGE_KEY = "appearance.fontColor";
-const ARTWORK_COLOR_STORAGE_KEY = "appearance.artworkColor";
-const ARTWORK_STORAGE_KEY = "appearance.artwork";
-const ARTWORK_SIZE_STORAGE_KEY = "appearance.artworkSize";
-const ARTWORK_X_STORAGE_KEY = "appearance.artworkPositionX";
-const ARTWORK_Y_STORAGE_KEY = "appearance.artworkPositionY";
-const PLAYLIST_WIDTH_STORAGE_KEY = "appearance.playlistWidth";
-const SIDEBAR_WIDTH_STORAGE_KEY = "appearance.sidebarWidth";
-const APPEARANCE_PRESETS_STORAGE_KEY = "appearance.presets";
-export const APPEARANCE_CHANGE_EVENT = "flowie2k:appearance-change";
+import {
+  jsonSetting,
+  numberSetting,
+  readSetting,
+  stringSetting,
+  writeSetting,
+  type Setting,
+} from "@/react-app/lib/local-storage";
+
 const APPEARANCE_PRESETS_VERSION = 1;
-export type AppearanceChangeSource = "customization" | "preset";
 export const DEFAULT_BACKGROUND = "#111b16";
 export const DEFAULT_FONT_COLOR = "#d2d8cf";
 export const DEFAULT_ARTWORK_COLOR = "#6f8f79";
@@ -66,7 +62,8 @@ export const ARTWORK_OPTIONS = Object.entries(artworkAssets)
 export type ArtworkId = string;
 export const DEFAULT_ARTWORK: ArtworkId = ARTWORK_OPTIONS[0]?.id ?? "";
 
-export type AppearancePresetValues = {
+/** Everything the customization section controls. */
+export type AppearanceValues = {
   backgroundColor: string;
   fontColor: string;
   artworkColor: string;
@@ -78,9 +75,24 @@ export type AppearancePresetValues = {
   sidebarWidth: number;
 };
 
+/** Presets cover the look (colors and artwork), not the layout widths. */
+const PRESET_KEYS = [
+  "backgroundColor",
+  "fontColor",
+  "artworkColor",
+  "artwork",
+  "artworkSize",
+  "artworkPositionX",
+  "artworkPositionY",
+] as const;
+export type AppearancePresetValues = Pick<AppearanceValues, (typeof PRESET_KEYS)[number]>;
+
 export type AppearancePreset = AppearancePresetValues & {
   name: string;
 };
+
+export const pickPresetValues = (appearance: AppearanceValues): AppearancePresetValues =>
+  Object.fromEntries(PRESET_KEYS.map((key) => [key, appearance[key]])) as AppearancePresetValues;
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -95,7 +107,7 @@ const getAccentColor = (color: string) => {
   return `#${accentChannels.map((value) => value.toString(16).padStart(2, "0")).join("")}`;
 };
 
-export const setBackgroundColor = (color: string) => {
+const setBackgroundColor = (color: string) => {
   const root = document.documentElement;
   const accentColor = getAccentColor(color);
   root.style.setProperty("--background", color);
@@ -105,7 +117,7 @@ export const setBackgroundColor = (color: string) => {
   root.style.setProperty("--sidebar-accent", accentColor);
 };
 
-export const setFontColor = (color: string) => {
+const setFontColor = (color: string) => {
   const root = document.documentElement;
   root.style.setProperty("--foreground", color);
   root.style.setProperty("--card-foreground", color);
@@ -117,11 +129,11 @@ export const setFontColor = (color: string) => {
   root.style.setProperty("--sidebar-accent-foreground", color);
 };
 
-export const setArtworkColor = (color: string) => {
+const setArtworkColor = (color: string) => {
   document.documentElement.style.setProperty("--artwork-color", color);
 };
 
-export const setArtwork = (artwork: ArtworkId) => {
+const setArtwork = (artwork: ArtworkId) => {
   const root = document.documentElement;
   const selectedArtwork = ARTWORK_OPTIONS.find((option) => option.id === artwork);
 
@@ -135,159 +147,122 @@ export const setArtwork = (artwork: ArtworkId) => {
   root.style.setProperty("--artwork-mask", `url(${JSON.stringify(selectedArtwork.url)})`);
 };
 
-export const setArtworkSize = (size: number) => {
+const setArtworkSize = (size: number) => {
   const clampedSize = clamp(size, MIN_ARTWORK_SIZE, MAX_ARTWORK_SIZE);
   document.documentElement.style.setProperty("--artwork-scale", String(clampedSize / 100));
 };
 
-export const setArtworkPositionX = (position: number) => {
+const setArtworkPositionX = (position: number) => {
   const clampedPosition = clamp(position, MIN_ARTWORK_POSITION, MAX_ARTWORK_POSITION);
   document.documentElement.style.setProperty("--artwork-position-x", `${clampedPosition}%`);
 };
 
-export const setArtworkPositionY = (position: number) => {
+const setArtworkPositionY = (position: number) => {
   const clampedPosition = clamp(position, MIN_ARTWORK_POSITION, MAX_ARTWORK_POSITION);
   document.documentElement.style.setProperty("--artwork-position-y", `${clampedPosition}%`);
 };
 
-export const setPlaylistWidth = (width: number) => {
+const setPlaylistWidth = (width: number) => {
   const clampedWidth = clamp(width, MIN_PLAYLIST_WIDTH, MAX_PLAYLIST_WIDTH);
   document.documentElement.style.setProperty("--playlist-pane-width", `${clampedWidth}%`);
 };
 
-export const setSidebarWidth = (width: number) => {
+const setSidebarWidth = (width: number) => {
   const clampedWidth = clamp(width, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH);
   document.documentElement.style.setProperty("--app-sidebar-width", `${clampedWidth}px`);
 };
 
-export const clearBackgroundColor = () => {
-  const root = document.documentElement;
-  root.style.removeProperty("--background");
-  root.style.removeProperty("--card");
-  root.style.removeProperty("--sidebar");
-  root.style.removeProperty("--accent");
-  root.style.removeProperty("--sidebar-accent");
-};
+// ---------- Stored settings ----------
 
-export const readStoredBackgroundColor = () => {
-  const storedColor =
-    window.localStorage.getItem(BACKGROUND_STORAGE_KEY) ??
-    window.localStorage.getItem(BACKGROUND_LEGACY_STORAGE_KEY);
+const isHexColor = (value: string): value is string => /^#[\da-f]{6}$/i.test(value);
+const isArtworkId = (value: string): value is ArtworkId =>
+  ARTWORK_OPTIONS.some((artwork) => artwork.id === value);
 
-  if (storedColor) {
-    window.localStorage.setItem(BACKGROUND_STORAGE_KEY, storedColor);
-    window.localStorage.removeItem(BACKGROUND_LEGACY_STORAGE_KEY);
-  }
-
-  return storedColor ?? DEFAULT_BACKGROUND;
-};
-
-export const readStoredFontColor = () => {
-  return window.localStorage.getItem(FONT_STORAGE_KEY) ?? DEFAULT_FONT_COLOR;
-};
-
-export const readStoredArtworkColor = () => {
-  return window.localStorage.getItem(ARTWORK_COLOR_STORAGE_KEY) ?? DEFAULT_ARTWORK_COLOR;
-};
-
-export const readStoredArtwork = (): ArtworkId => {
-  const storedArtwork = window.localStorage.getItem(ARTWORK_STORAGE_KEY);
-  return ARTWORK_OPTIONS.some((artwork) => artwork.id === storedArtwork)
-    ? (storedArtwork ?? DEFAULT_ARTWORK)
-    : DEFAULT_ARTWORK;
-};
-
-export const readStoredArtworkSize = () => {
-  const storedValue = window.localStorage.getItem(ARTWORK_SIZE_STORAGE_KEY);
-  const storedSize = Number(storedValue);
-  return storedValue !== null && Number.isFinite(storedSize)
-    ? clamp(storedSize, MIN_ARTWORK_SIZE, MAX_ARTWORK_SIZE)
-    : DEFAULT_ARTWORK_SIZE;
-};
-
-const readStoredArtworkPosition = (storageKey: string) => {
-  const storedValue = window.localStorage.getItem(storageKey);
-  const storedPosition = Number(storedValue);
-  return storedValue !== null && Number.isFinite(storedPosition)
-    ? clamp(storedPosition, MIN_ARTWORK_POSITION, MAX_ARTWORK_POSITION)
-    : DEFAULT_ARTWORK_POSITION;
-};
-
-export const readStoredArtworkPositionX = () => readStoredArtworkPosition(ARTWORK_X_STORAGE_KEY);
-
-export const readStoredArtworkPositionY = () => readStoredArtworkPosition(ARTWORK_Y_STORAGE_KEY);
-
-export const readStoredPlaylistWidth = () => {
-  const storedValue = window.localStorage.getItem(PLAYLIST_WIDTH_STORAGE_KEY);
-  const storedWidth = Number(storedValue);
-  return storedValue !== null && Number.isFinite(storedWidth)
-    ? clamp(storedWidth, MIN_PLAYLIST_WIDTH, MAX_PLAYLIST_WIDTH)
-    : DEFAULT_PLAYLIST_WIDTH;
-};
-
-export const readStoredSidebarWidth = () => {
-  const storedValue = window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
-  const storedWidth = Number(storedValue);
-  return storedValue !== null && Number.isFinite(storedWidth)
-    ? clamp(storedWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH)
-    : DEFAULT_SIDEBAR_WIDTH;
-};
-
-export const storeBackgroundColor = (color: string) => {
-  window.localStorage.setItem(BACKGROUND_STORAGE_KEY, color);
-};
-
-export const storeFontColor = (color: string) => {
-  window.localStorage.setItem(FONT_STORAGE_KEY, color);
-};
-
-export const storeArtworkColor = (color: string) => {
-  window.localStorage.setItem(ARTWORK_COLOR_STORAGE_KEY, color);
-};
-
-export const storeArtwork = (artwork: ArtworkId) => {
-  if (artwork) {
-    window.localStorage.setItem(ARTWORK_STORAGE_KEY, artwork);
-  } else {
-    window.localStorage.removeItem(ARTWORK_STORAGE_KEY);
-  }
-};
-
-export const storeArtworkSize = (size: number) => {
-  window.localStorage.setItem(ARTWORK_SIZE_STORAGE_KEY, String(size));
-};
-
-export const storeArtworkPositionX = (position: number) => {
-  window.localStorage.setItem(ARTWORK_X_STORAGE_KEY, String(position));
-};
-
-export const storeArtworkPositionY = (position: number) => {
-  window.localStorage.setItem(ARTWORK_Y_STORAGE_KEY, String(position));
-};
-
-export const storePlaylistWidth = (width: number) => {
-  window.localStorage.setItem(PLAYLIST_WIDTH_STORAGE_KEY, String(width));
-};
-
-export const storeSidebarWidth = (width: number) => {
-  window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(width));
-};
-
-export const notifyAppearanceChange = (source: AppearanceChangeSource) => {
-  window.dispatchEvent(new CustomEvent(APPEARANCE_CHANGE_EVENT, { detail: { source } }));
-};
-
-export const getCurrentAppearance = (): AppearancePresetValues => ({
-  backgroundColor: readStoredBackgroundColor(),
-  fontColor: readStoredFontColor(),
-  artworkColor: readStoredArtworkColor(),
-  artwork: readStoredArtwork(),
-  artworkSize: readStoredArtworkSize(),
-  artworkPositionX: readStoredArtworkPositionX(),
-  artworkPositionY: readStoredArtworkPositionY(),
-  playlistWidth: readStoredPlaylistWidth(),
-  sidebarWidth: readStoredSidebarWidth(),
+const backgroundColorSetting = stringSetting(
+  "appearance.backgroundColor",
+  DEFAULT_BACKGROUND,
+  isHexColor,
+);
+const fontColorSetting = stringSetting("appearance.fontColor", DEFAULT_FONT_COLOR, isHexColor);
+const artworkColorSetting = stringSetting(
+  "appearance.artworkColor",
+  DEFAULT_ARTWORK_COLOR,
+  isHexColor,
+);
+const artworkSetting = stringSetting<ArtworkId>("appearance.artwork", DEFAULT_ARTWORK, isArtworkId);
+const artworkSizeSetting = numberSetting("appearance.artworkSize", DEFAULT_ARTWORK_SIZE, {
+  min: MIN_ARTWORK_SIZE,
+  max: MAX_ARTWORK_SIZE,
 });
+const artworkPositionXSetting = numberSetting(
+  "appearance.artworkPositionX",
+  DEFAULT_ARTWORK_POSITION,
+  { min: MIN_ARTWORK_POSITION, max: MAX_ARTWORK_POSITION },
+);
+const artworkPositionYSetting = numberSetting(
+  "appearance.artworkPositionY",
+  DEFAULT_ARTWORK_POSITION,
+  { min: MIN_ARTWORK_POSITION, max: MAX_ARTWORK_POSITION },
+);
+const playlistWidthSetting = numberSetting("appearance.playlistWidth", DEFAULT_PLAYLIST_WIDTH, {
+  min: MIN_PLAYLIST_WIDTH,
+  max: MAX_PLAYLIST_WIDTH,
+});
+const sidebarWidthSetting = numberSetting("appearance.sidebarWidth", DEFAULT_SIDEBAR_WIDTH, {
+  min: MIN_SIDEBAR_WIDTH,
+  max: MAX_SIDEBAR_WIDTH,
+});
+
+// Each appearance value, its setting, and how it's applied to the page.
+const APPEARANCE: {
+  [K in keyof AppearanceValues]: {
+    setting: Setting<AppearanceValues[K]>;
+    apply: (value: AppearanceValues[K]) => void;
+  };
+} = {
+  backgroundColor: { setting: backgroundColorSetting, apply: setBackgroundColor },
+  fontColor: { setting: fontColorSetting, apply: setFontColor },
+  artworkColor: { setting: artworkColorSetting, apply: setArtworkColor },
+  artwork: { setting: artworkSetting, apply: setArtwork },
+  artworkSize: { setting: artworkSizeSetting, apply: setArtworkSize },
+  artworkPositionX: { setting: artworkPositionXSetting, apply: setArtworkPositionX },
+  artworkPositionY: { setting: artworkPositionYSetting, apply: setArtworkPositionY },
+  playlistWidth: { setting: playlistWidthSetting, apply: setPlaylistWidth },
+  sidebarWidth: { setting: sidebarWidthSetting, apply: setSidebarWidth },
+};
+const APPEARANCE_KEYS = Object.keys(APPEARANCE) as (keyof AppearanceValues)[];
+
+/** Props shared by the customization controls; the state lives in CustomizationSection. */
+export type AppearanceControlProps = {
+  appearance: AppearanceValues;
+  onChange: (patch: Partial<AppearanceValues>) => void;
+};
+
+export const readAppearance = (): AppearanceValues =>
+  Object.fromEntries(
+    APPEARANCE_KEYS.map((name) => [
+      name,
+      readSetting(APPEARANCE[name].setting as Setting<unknown>),
+    ]),
+  ) as AppearanceValues;
+
+/** Sets the CSS variables for the given appearance. */
+export const applyAppearance = (appearance: AppearanceValues) => {
+  for (const name of APPEARANCE_KEYS) {
+    (APPEARANCE[name].apply as (value: unknown) => void)(appearance[name]);
+  }
+};
+
+export const storeAppearance = (appearance: AppearanceValues) => {
+  for (const name of APPEARANCE_KEYS) {
+    writeSetting(APPEARANCE[name].setting as Setting<unknown>, appearance[name]);
+  }
+};
+
+export const matchesAppearance = (preset: AppearancePresetValues, current: AppearanceValues) =>
+  PRESET_KEYS.every((key) => preset[key] === current[key]);
+
+// ---------- Presets ----------
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -304,12 +279,10 @@ const normalizeAppearancePreset = (value: unknown): AppearancePreset | null => {
     typeof value.backgroundColor !== "string" ||
     typeof value.fontColor !== "string" ||
     typeof value.artworkColor !== "string" ||
-    (artwork && !ARTWORK_OPTIONS.some((option) => option.id === artwork)) ||
+    (artwork && !isArtworkId(artwork)) ||
     typeof value.artworkSize !== "number" ||
     typeof value.artworkPositionX !== "number" ||
-    typeof value.artworkPositionY !== "number" ||
-    typeof value.playlistWidth !== "number" ||
-    typeof value.sidebarWidth !== "number"
+    typeof value.artworkPositionY !== "number"
   ) {
     return null;
   }
@@ -323,80 +296,19 @@ const normalizeAppearancePreset = (value: unknown): AppearancePreset | null => {
     artworkSize: clamp(value.artworkSize, MIN_ARTWORK_SIZE, MAX_ARTWORK_SIZE),
     artworkPositionX: clamp(value.artworkPositionX, MIN_ARTWORK_POSITION, MAX_ARTWORK_POSITION),
     artworkPositionY: clamp(value.artworkPositionY, MIN_ARTWORK_POSITION, MAX_ARTWORK_POSITION),
-    playlistWidth: clamp(value.playlistWidth, MIN_PLAYLIST_WIDTH, MAX_PLAYLIST_WIDTH),
-    sidebarWidth: clamp(value.sidebarWidth, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH),
   };
 };
 
-export const readAppearancePresets = (): AppearancePreset[] => {
-  try {
-    const storedValue = window.localStorage.getItem(APPEARANCE_PRESETS_STORAGE_KEY);
-    if (!storedValue) {
-      return [];
-    }
-
-    const parsed: unknown = JSON.parse(storedValue);
-    if (!isRecord(parsed) || parsed.version !== APPEARANCE_PRESETS_VERSION) {
-      return [];
-    }
-
-    if (!Array.isArray(parsed.presets)) {
-      return [];
-    }
-
-    return parsed.presets.flatMap((preset) => {
+export const appearancePresetsSetting = jsonSetting<AppearancePreset[]>(
+  "appearance.presets",
+  [],
+  (stored) => {
+    if (!isRecord(stored) || stored.version !== APPEARANCE_PRESETS_VERSION) return undefined;
+    if (!Array.isArray(stored.presets)) return undefined;
+    return stored.presets.flatMap((preset) => {
       const normalized = normalizeAppearancePreset(preset);
       return normalized ? [normalized] : [];
     });
-  } catch {
-    return [];
-  }
-};
-
-export const storeAppearancePresets = (presets: AppearancePreset[]) => {
-  window.localStorage.setItem(
-    APPEARANCE_PRESETS_STORAGE_KEY,
-    JSON.stringify({ version: APPEARANCE_PRESETS_VERSION, presets }),
-  );
-};
-
-export const applyAppearancePreset = (preset: AppearancePresetValues) => {
-  setBackgroundColor(preset.backgroundColor);
-  setFontColor(preset.fontColor);
-  setArtworkColor(preset.artworkColor);
-  setArtwork(preset.artwork);
-  setArtworkSize(preset.artworkSize);
-  setArtworkPositionX(preset.artworkPositionX);
-  setArtworkPositionY(preset.artworkPositionY);
-  setPlaylistWidth(preset.playlistWidth);
-  setSidebarWidth(preset.sidebarWidth);
-
-  storeBackgroundColor(preset.backgroundColor);
-  storeFontColor(preset.fontColor);
-  storeArtworkColor(preset.artworkColor);
-  storeArtwork(preset.artwork);
-  storeArtworkSize(preset.artworkSize);
-  storeArtworkPositionX(preset.artworkPositionX);
-  storeArtworkPositionY(preset.artworkPositionY);
-  storePlaylistWidth(preset.playlistWidth);
-  storeSidebarWidth(preset.sidebarWidth);
-
-  notifyAppearanceChange("preset");
-};
-
-export const clearStoredBackgroundColor = () => {
-  window.localStorage.removeItem(BACKGROUND_STORAGE_KEY);
-  window.localStorage.removeItem(BACKGROUND_LEGACY_STORAGE_KEY);
-};
-
-export const applyStoredAppearance = () => {
-  setBackgroundColor(readStoredBackgroundColor());
-  setFontColor(readStoredFontColor());
-  setArtworkColor(readStoredArtworkColor());
-  setArtwork(readStoredArtwork());
-  setArtworkSize(readStoredArtworkSize());
-  setArtworkPositionX(readStoredArtworkPositionX());
-  setArtworkPositionY(readStoredArtworkPositionY());
-  setPlaylistWidth(readStoredPlaylistWidth());
-  setSidebarWidth(readStoredSidebarWidth());
-};
+  },
+  (presets) => ({ version: APPEARANCE_PRESETS_VERSION, presets }),
+);

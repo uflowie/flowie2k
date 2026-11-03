@@ -1,20 +1,7 @@
-import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 
 import { SidebarMenuItem } from "@/components/ui/sidebar";
-import {
-  APPEARANCE_CHANGE_EVENT,
-  readStoredArtworkColor,
-  readStoredBackgroundColor,
-  readStoredFontColor,
-  notifyAppearanceChange,
-  setArtworkColor,
-  setBackgroundColor,
-  setFontColor,
-  storeArtworkColor,
-  storeBackgroundColor,
-  storeFontColor,
-} from "@/react-app/lib/appearance";
+import { type AppearanceControlProps } from "@/react-app/lib/appearance";
 
 type ColorPickerRowProps = {
   id: string;
@@ -44,12 +31,6 @@ type AppearanceColors = {
   font: string;
   artwork: string;
 };
-
-const readStoredColors = (): AppearanceColors => ({
-  background: readStoredBackgroundColor(),
-  font: readStoredFontColor(),
-  artwork: readStoredArtworkColor(),
-});
 
 const randomInteger = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
@@ -108,48 +89,14 @@ const createLuckyColors = (): AppearanceColors => {
   };
 };
 
-const applyAndStoreColors = (colors: AppearanceColors) => {
-  setBackgroundColor(colors.background);
-  setFontColor(colors.font);
-  setArtworkColor(colors.artwork);
-  storeBackgroundColor(colors.background);
-  storeFontColor(colors.font);
-  storeArtworkColor(colors.artwork);
-  notifyAppearanceChange("customization");
-};
-
-export function AppearanceColorControls() {
-  const [colors, setColors] = useState(readStoredColors);
-
-  useEffect(() => {
-    const handleAppearanceChange = () => setColors(readStoredColors());
-    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
-    return () => window.removeEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
-  }, []);
-
-  const updateColor = (colorName: keyof AppearanceColors, color: string) => {
-    setColors((currentColors) => ({
-      ...currentColors,
-      [colorName]: color,
-    }));
-
-    if (colorName === "background") {
-      setBackgroundColor(color);
-      storeBackgroundColor(color);
-    } else if (colorName === "font") {
-      setFontColor(color);
-      storeFontColor(color);
-    } else {
-      setArtworkColor(color);
-      storeArtworkColor(color);
-    }
-    notifyAppearanceChange("customization");
-  };
-
+export function AppearanceColorControls({ appearance, onChange }: AppearanceControlProps) {
   const handleFeelingLucky = () => {
     const luckyColors = createLuckyColors();
-    setColors(luckyColors);
-    applyAndStoreColors(luckyColors);
+    onChange({
+      backgroundColor: luckyColors.background,
+      fontColor: luckyColors.font,
+      artworkColor: luckyColors.artwork,
+    });
   };
 
   return (
@@ -158,24 +105,24 @@ export function AppearanceColorControls() {
         <ColorPickerRow
           id="background-color"
           label="Background Color"
-          color={colors.background}
-          onColorChange={(color) => updateColor("background", color)}
+          color={appearance.backgroundColor}
+          onColorChange={(color) => onChange({ backgroundColor: color })}
         />
       </SidebarMenuItem>
       <SidebarMenuItem>
         <ColorPickerRow
           id="font-color"
           label="Font Color"
-          color={colors.font}
-          onColorChange={(color) => updateColor("font", color)}
+          color={appearance.fontColor}
+          onColorChange={(color) => onChange({ fontColor: color })}
         />
       </SidebarMenuItem>
       <SidebarMenuItem>
         <ColorPickerRow
           id="artwork-color"
           label="Artwork Color"
-          color={colors.artwork}
-          onColorChange={(color) => updateColor("artwork", color)}
+          color={appearance.artworkColor}
+          onColorChange={(color) => onChange({ artworkColor: color })}
         />
       </SidebarMenuItem>
       <SidebarMenuItem>

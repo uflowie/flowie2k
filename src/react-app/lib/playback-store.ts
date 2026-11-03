@@ -1,14 +1,10 @@
 import { create } from "zustand";
 
+import { booleanSetting, readSetting, writeSetting } from "@/react-app/lib/local-storage";
 import { DEFAULT_PLAYLIST, getPlaylistKey, type ActivePlaylist } from "@/react-app/lib/playlists";
 
-const readStoredBoolean = (key: string, fallback: boolean) => {
-  const stored = window.localStorage.getItem(key);
-  if (stored === null) {
-    return fallback;
-  }
-  return stored === "true";
-};
+const shuffleSetting = booleanSetting("player.shuffle", false);
+const repeatSetting = booleanSetting("player.repeat", false);
 
 const shuffleArray = (items: number[]) => {
   const array = [...items];
@@ -119,8 +115,8 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   queueIndex: 0,
   currentSongId: null,
   isPlaying: false,
-  shuffle: readStoredBoolean("player.shuffle", false),
-  repeat: readStoredBoolean("player.repeat", false),
+  shuffle: readSetting(shuffleSetting),
+  repeat: readSetting(repeatSetting),
   restartToken: 0,
   setActivePlaylist: (playlist) =>
     set((state) => {
@@ -215,7 +211,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   toggleShuffle: () =>
     set((state) => {
       const nextShuffle = !state.shuffle;
-      window.localStorage.setItem("player.shuffle", String(nextShuffle));
+      writeSetting(shuffleSetting, nextShuffle);
       if (!state.queueSource.length) {
         return { shuffle: nextShuffle };
       }
@@ -227,7 +223,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   toggleRepeat: () =>
     set((state) => {
       const nextRepeat = !state.repeat;
-      window.localStorage.setItem("player.repeat", String(nextRepeat));
+      writeSetting(repeatSetting, nextRepeat);
       return { repeat: nextRepeat };
     }),
 }));

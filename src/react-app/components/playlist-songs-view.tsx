@@ -35,6 +35,7 @@ import {
 } from "@/react-app/lib/queries";
 import { usePlaybackStore } from "@/react-app/lib/playback-store";
 import { getSongTitle } from "@/react-app/lib/songs";
+import { jsonSetting, useLocalStorage } from "@/react-app/lib/local-storage";
 import type { PlaylistSummary, PlaylistSong } from "@/react-app/lib/types";
 
 const formatDuration = (seconds?: number | null) => {
@@ -95,7 +96,6 @@ type TableSort = {
   direction: "asc" | "desc";
 };
 
-const TABLE_SORT_STORAGE_KEY = "playlist.sortOrder";
 const DEFAULT_SORT_DIRECTIONS: Record<SortKey, TableSort["direction"]> = {
   title: "asc",
   artist: "asc",
@@ -110,54 +110,26 @@ const SORT_KEYS = new Set<SortKey>(Object.keys(DEFAULT_SORT_DIRECTIONS) as SortK
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const readStoredTableSorts = (): Record<string, TableSort> => {
-  if (typeof window === "undefined") {
-    return {};
-  }
-
-  try {
-    const storedValue = window.localStorage.getItem(TABLE_SORT_STORAGE_KEY);
-    if (!storedValue) {
-      return {};
-    }
-
-    const storedSorts: unknown = JSON.parse(storedValue);
-    if (!isRecord(storedSorts)) {
-      return {};
-    }
-
+const tableSortsSetting = jsonSetting<Record<string, TableSort>>(
+  "playlist.sortOrder",
+  {},
+  (stored) => {
+    if (!isRecord(stored)) return undefined;
     const sorts: Record<string, TableSort> = {};
-    for (const [playlistKey, storedSort] of Object.entries(storedSorts)) {
-      if (!isRecord(storedSort)) {
-        continue;
-      }
-
+    for (const [playlistKey, storedSort] of Object.entries(stored)) {
+      if (!isRecord(storedSort)) continue;
       const { key, direction } = storedSort;
       if (
         typeof key === "string" &&
         SORT_KEYS.has(key as SortKey) &&
         (direction === "asc" || direction === "desc")
       ) {
-        sorts[playlistKey] = {
-          key: key as SortKey,
-          direction,
-        };
+        sorts[playlistKey] = { key: key as SortKey, direction };
       }
     }
-
     return sorts;
-  } catch {
-    return {};
-  }
-};
-
-const storeTableSorts = (sorts: Record<string, TableSort>) => {
-  try {
-    window.localStorage.setItem(TABLE_SORT_STORAGE_KEY, JSON.stringify(sorts));
-  } catch {
-    // Ignore storage failures (for example, private browsing restrictions).
-  }
-};
+  },
+);
 
 type SongsColumnMeta = {
   sortKey?: SortKey;
@@ -417,7 +389,7 @@ export function PlaylistSongsView({
   const activePlaylist = playlist;
   const playlistKey = getPlaylistKey(activePlaylist);
   const [searchQuery, setSearchQuery] = useState("");
-  const [tableSorts, setTableSorts] = useState<Record<string, TableSort>>(readStoredTableSorts);
+  const [tableSorts, setTableSorts] = useLocalStorage(tableSortsSetting);
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
   const setTableContainerRef = useCallback((element: HTMLDivElement | null) => {
     setScrollElement(element);
@@ -460,12 +432,7 @@ export function PlaylistSongsView({
             direction: current.direction === "asc" ? "desc" : "asc",
           };
 
-    const nextTableSorts = {
-      ...tableSorts,
-      [playlistKey]: nextSort,
-    };
-    setTableSorts(nextTableSorts);
-    storeTableSorts(nextTableSorts);
+    setTableSorts({ ...tableSorts, [playlistKey]: nextSort });
   };
 
   const activeSortedSongs = useMemo(() => {

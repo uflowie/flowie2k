@@ -1,37 +1,31 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Save, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SidebarMenuItem } from "@/components/ui/sidebar";
 import {
-  applyAppearancePreset,
-  getCurrentAppearance,
-  readAppearancePresets,
-  storeAppearancePresets,
-  APPEARANCE_CHANGE_EVENT,
-  type AppearanceChangeSource,
+  appearancePresetsSetting,
+  matchesAppearance,
+  pickPresetValues,
   type AppearancePreset,
+  type AppearancePresetValues,
+  type AppearanceValues,
 } from "@/react-app/lib/appearance";
+import { useLocalStorage } from "@/react-app/lib/local-storage";
 
 const getPresetKey = (name: string) => name.trim().toLocaleLowerCase();
 
-export function AppearancePresets() {
-  const [presets, setPresets] = useState<AppearancePreset[]>(readAppearancePresets);
+type AppearancePresetsProps = {
+  appearance: AppearanceValues;
+  onApply: (preset: AppearancePresetValues) => void;
+};
+
+export function AppearancePresets({ appearance, onApply }: AppearancePresetsProps) {
+  const [presets, setPresets] = useLocalStorage(appearancePresetsSetting);
   const [name, setName] = useState("");
-  const [selectedName, setSelectedName] = useState("");
-
-  useEffect(() => {
-    const handleAppearanceChange = (event: Event) => {
-      const source = (event as CustomEvent<{ source?: AppearanceChangeSource }>).detail?.source;
-      if (source === "customization") {
-        setSelectedName("");
-      }
-    };
-
-    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
-    return () => window.removeEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
-  }, []);
+  // The selected preset is whichever one matches the current appearance.
+  const selectedName = presets.find((preset) => matchesAppearance(preset, appearance))?.name ?? "";
 
   const handleSave = () => {
     const trimmedName = name.trim();
@@ -41,35 +35,29 @@ export function AppearancePresets() {
 
     const nextPreset: AppearancePreset = {
       name: trimmedName,
-      ...getCurrentAppearance(),
+      ...pickPresetValues(appearance),
     };
-    const nextPresets = [
+    setPresets([
       ...presets.filter((preset) => getPresetKey(preset.name) !== getPresetKey(trimmedName)),
       nextPreset,
-    ];
-    setPresets(nextPresets);
-    storeAppearancePresets(nextPresets);
-    setSelectedName(trimmedName);
+    ]);
     setName("");
   };
 
   const handlePresetChange = (presetName: string) => {
-    setSelectedName(presetName);
     const selectedPreset = presets.find(
       (preset) => getPresetKey(preset.name) === getPresetKey(presetName),
     );
     if (selectedPreset) {
-      applyAppearancePreset(selectedPreset);
+      const { name: _name, ...values } = selectedPreset;
+      onApply(values);
     }
   };
 
   const handleDelete = () => {
-    const nextPresets = presets.filter(
-      (preset) => getPresetKey(preset.name) !== getPresetKey(selectedName),
+    setPresets(
+      presets.filter((preset) => getPresetKey(preset.name) !== getPresetKey(selectedName)),
     );
-    setPresets(nextPresets);
-    storeAppearancePresets(nextPresets);
-    setSelectedName("");
   };
 
   return (

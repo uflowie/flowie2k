@@ -18,17 +18,12 @@ import { getStreamUrl, getThumbnailUrl, useSongsQuery } from "@/react-app/lib/qu
 import { usePlaybackStore } from "@/react-app/lib/playback-store";
 import { getSongTitle } from "@/react-app/lib/songs";
 import { cacheAudio, getCachedAudio } from "@/react-app/lib/audio-cache";
+import { numberSetting, useLocalStorage } from "@/react-app/lib/local-storage";
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-const readStoredNumber = (key: string, fallback: number) => {
-  const stored = window.localStorage.getItem(key);
-  if (!stored) {
-    return fallback;
-  }
-  const parsed = Number(stored);
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
+const volumeSetting = numberSetting("player.volume", 1, { min: 0, max: 1 });
+const playbackRateSetting = numberSetting("player.playbackRate", 1, { min: 0.5, max: 1.5 });
 
 const formatTime = (value?: number | null) => {
   if (!value || value <= 0) {
@@ -60,22 +55,6 @@ const updateMediaSessionPosition = (audio: HTMLAudioElement) => {
   } catch {
     // Some browsers expose Media Session without supporting position state.
   }
-};
-
-const scheduleStoredValue = (
-  key: string,
-  value: string,
-  timeoutRef: React.RefObject<number | null>,
-  delayMs = 200,
-) => {
-  if (timeoutRef.current !== null) {
-    window.clearTimeout(timeoutRef.current);
-  }
-
-  timeoutRef.current = window.setTimeout(() => {
-    window.localStorage.setItem(key, value);
-    timeoutRef.current = null;
-  }, delayMs);
 };
 
 const toggleControlClass = (active: boolean) =>
@@ -151,12 +130,8 @@ export function PlaybackControls() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const sourceReadyRef = useRef(false);
-  const volumeStorageTimeoutRef = useRef<number | null>(null);
-  const playbackRateStorageTimeoutRef = useRef<number | null>(null);
-  const [volume, setVolume] = useState(() => clamp(readStoredNumber("player.volume", 1), 0, 1));
-  const [playbackRate, setPlaybackRate] = useState(() =>
-    clamp(readStoredNumber("player.playbackRate", 1), 0.5, 1.5),
-  );
+  const [volume, setVolume] = useLocalStorage(volumeSetting);
+  const [playbackRate, setPlaybackRate] = useLocalStorage(playbackRateSetting);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
@@ -381,38 +356,28 @@ export function PlaybackControls() {
 
     next();
   }, [next, repeat]);
-  const handlePlaybackRateChange = useCallback((value: number[]) => {
-    const nextValue = value[0];
-    if (typeof nextValue !== "number") {
-      return;
-    }
-
-    const clamped = clamp(nextValue, 0.5, 1.5);
-    setPlaybackRate((current) => {
-      if (current === clamped) {
-        return current;
+  const handlePlaybackRateChange = useCallback(
+    (value: number[]) => {
+      const nextValue = value[0];
+      if (typeof nextValue !== "number") {
+        return;
       }
 
-      scheduleStoredValue("player.playbackRate", String(clamped), playbackRateStorageTimeoutRef);
-      return clamped;
-    });
-  }, []);
-  const handleVolumeChange = useCallback((value: number[]) => {
-    const nextValue = value[0];
-    if (typeof nextValue !== "number") {
-      return;
-    }
-
-    const clamped = clamp(nextValue, 0, 1);
-    setVolume((current) => {
-      if (current === clamped) {
-        return current;
+      setPlaybackRate(clamp(nextValue, 0.5, 1.5));
+    },
+    [setPlaybackRate],
+  );
+  const handleVolumeChange = useCallback(
+    (value: number[]) => {
+      const nextValue = value[0];
+      if (typeof nextValue !== "number") {
+        return;
       }
 
-      scheduleStoredValue("player.volume", String(clamped), volumeStorageTimeoutRef);
-      return clamped;
-    });
-  }, []);
+      setVolume(clamp(nextValue, 0, 1));
+    },
+    [setVolume],
+  );
 
   return (
     <div className="bg-background px-3 py-2">

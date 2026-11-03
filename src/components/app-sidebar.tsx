@@ -15,7 +15,6 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Input } from "@/components/ui/input";
 import {
   CalendarRange,
-  ChevronDown,
   Flame,
   FolderUp,
   ListMusic,
@@ -41,12 +40,7 @@ import {
   useUploadSongMutation,
 } from "@/react-app/lib/queries";
 import { usePlaybackStore } from "@/react-app/lib/playback-store";
-import { AppearanceColorControls } from "@/react-app/components/background-color-picker";
-import { PlaylistWidthSlider } from "@/react-app/components/playlist-width-slider";
-import { SidebarWidthSlider } from "@/react-app/components/sidebar-width-slider";
-import { ArtworkPicker } from "@/react-app/components/artwork-picker";
-import { ArtworkPositionControls } from "@/react-app/components/artwork-position-controls";
-import { AppearancePresets } from "@/react-app/components/appearance-presets";
+import { CustomizationSection } from "@/react-app/components/customization-section";
 import { toast } from "sonner";
 
 const SMART_PLAYLIST_ICONS: Record<SmartPlaylistId, LucideIcon> = {
@@ -56,14 +50,9 @@ const SMART_PLAYLIST_ICONS: Record<SmartPlaylistId, LucideIcon> = {
   "popular-365": CalendarRange,
 };
 
-const CUSTOMIZATION_OPEN_STORAGE_KEY = "sidebar.customizationOpen";
-
 export function AppSidebar() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
-  const [customizationOpen, setCustomizationOpen] = useState(
-    () => window.localStorage.getItem(CUSTOMIZATION_OPEN_STORAGE_KEY) !== "false",
-  );
   const queryClient = useQueryClient();
   const activePlaylist = usePlaybackStore((state) => state.activePlaylist);
   const setActivePlaylist = usePlaybackStore((state) => state.setActivePlaylist);
@@ -262,49 +251,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel asChild>
-            <button
-              type="button"
-              aria-controls="customization-content"
-              aria-expanded={customizationOpen}
-              onClick={() => {
-                window.localStorage.setItem(
-                  CUSTOMIZATION_OPEN_STORAGE_KEY,
-                  String(!customizationOpen),
-                );
-                setCustomizationOpen(!customizationOpen);
-              }}
-              className="w-full justify-between text-left"
-            >
-              <span>Customization</span>
-              <ChevronDown
-                aria-hidden="true"
-                className={`transition-transform ${customizationOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-          </SidebarGroupLabel>
-          {customizationOpen ? (
-            <SidebarGroupContent id="customization-content">
-              <SidebarMenu>
-                <AppearancePresets />
-                <AppearanceColorControls />
-                <SidebarMenuItem>
-                  <ArtworkPicker />
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <ArtworkPositionControls />
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarWidthSlider />
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <PlaylistWidthSlider />
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          ) : null}
-        </SidebarGroup>
+        <CustomizationSection />
 
         <SidebarGroup>
           <SidebarGroupLabel>Mixes</SidebarGroupLabel>

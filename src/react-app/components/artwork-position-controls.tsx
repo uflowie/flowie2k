@@ -1,41 +1,22 @@
-import { useEffect, useState } from "react";
 import { MoveHorizontal, MoveVertical, Scaling } from "lucide-react";
 
 import { Slider } from "@/components/ui/slider";
 import {
-  APPEARANCE_CHANGE_EVENT,
   MAX_ARTWORK_POSITION,
   MAX_ARTWORK_SIZE,
   MIN_ARTWORK_POSITION,
   MIN_ARTWORK_SIZE,
-  notifyAppearanceChange,
-  readStoredArtworkPositionX,
-  readStoredArtworkPositionY,
-  readStoredArtworkSize,
-  setArtworkPositionX,
-  setArtworkPositionY,
-  setArtworkSize,
-  storeArtworkPositionX,
-  storeArtworkPositionY,
-  storeArtworkSize,
+  type AppearanceControlProps,
 } from "@/react-app/lib/appearance";
 
 const formatPosition = (position: number) => `${position > 0 ? "+" : ""}${position}%`;
 
-export function ArtworkPositionControls() {
-  const [size, setSize] = useState(readStoredArtworkSize);
-  const [positionX, setPositionX] = useState(readStoredArtworkPositionX);
-  const [positionY, setPositionY] = useState(readStoredArtworkPositionY);
-
-  useEffect(() => {
-    const handleAppearanceChange = () => {
-      setSize(readStoredArtworkSize());
-      setPositionX(readStoredArtworkPositionX());
-      setPositionY(readStoredArtworkPositionY());
-    };
-    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
-    return () => window.removeEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
-  }, []);
+export function ArtworkPositionControls({ appearance, onChange }: AppearanceControlProps) {
+  const {
+    artworkSize: size,
+    artworkPositionX: positionX,
+    artworkPositionY: positionY,
+  } = appearance;
 
   return (
     <div className="space-y-3 rounded-sm p-1.5 text-xs hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
@@ -55,15 +36,7 @@ export function ArtworkPositionControls() {
             if (typeof nextSize !== "number") {
               return;
             }
-            setSize(nextSize);
-            setArtworkSize(nextSize);
-          }}
-          onValueCommit={(values) => {
-            const nextSize = values[0];
-            if (typeof nextSize === "number") {
-              storeArtworkSize(nextSize);
-              notifyAppearanceChange("customization");
-            }
+            onChange({ artworkSize: nextSize });
           }}
           aria-label="Artwork size"
         />
@@ -85,15 +58,7 @@ export function ArtworkPositionControls() {
             if (typeof nextPosition !== "number") {
               return;
             }
-            setPositionX(nextPosition);
-            setArtworkPositionX(nextPosition);
-          }}
-          onValueCommit={(values) => {
-            const nextPosition = values[0];
-            if (typeof nextPosition === "number") {
-              storeArtworkPositionX(nextPosition);
-              notifyAppearanceChange("customization");
-            }
+            onChange({ artworkPositionX: nextPosition });
           }}
           aria-label="Artwork horizontal position"
         />
@@ -115,15 +80,7 @@ export function ArtworkPositionControls() {
             if (typeof nextPosition !== "number") {
               return;
             }
-            setPositionY(nextPosition);
-            setArtworkPositionY(nextPosition);
-          }}
-          onValueCommit={(values) => {
-            const nextPosition = values[0];
-            if (typeof nextPosition === "number") {
-              storeArtworkPositionY(nextPosition);
-              notifyAppearanceChange("customization");
-            }
+            onChange({ artworkPositionY: nextPosition });
           }}
           aria-label="Artwork vertical position"
         />

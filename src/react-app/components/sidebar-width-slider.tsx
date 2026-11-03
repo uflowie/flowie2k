@@ -1,25 +1,14 @@
-import { useEffect, useState } from "react";
 import { PanelLeft } from "lucide-react";
 
 import { Slider } from "@/components/ui/slider";
 import {
-  APPEARANCE_CHANGE_EVENT,
   MAX_SIDEBAR_WIDTH,
   MIN_SIDEBAR_WIDTH,
-  notifyAppearanceChange,
-  readStoredSidebarWidth,
-  setSidebarWidth,
-  storeSidebarWidth,
+  type AppearanceControlProps,
 } from "@/react-app/lib/appearance";
 
-export function SidebarWidthSlider() {
-  const [width, setWidth] = useState(readStoredSidebarWidth);
-
-  useEffect(() => {
-    const handleAppearanceChange = () => setWidth(readStoredSidebarWidth());
-    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
-    return () => window.removeEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
-  }, []);
+export function SidebarWidthSlider({ appearance, onChange }: AppearanceControlProps) {
+  const width = appearance.sidebarWidth;
 
   return (
     <div className="space-y-2 rounded-sm p-1.5 text-xs hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
@@ -38,15 +27,7 @@ export function SidebarWidthSlider() {
           if (typeof nextWidth !== "number") {
             return;
           }
-          setWidth(nextWidth);
-          setSidebarWidth(nextWidth);
-        }}
-        onValueCommit={(values) => {
-          const nextWidth = values[0];
-          if (typeof nextWidth === "number") {
-            storeSidebarWidth(nextWidth);
-            notifyAppearanceChange("customization");
-          }
+          onChange({ sidebarWidth: nextWidth });
         }}
         aria-label="Sidebar width"
       />

@@ -1,25 +1,14 @@
-import { useEffect, useState } from "react";
 import { Columns3 } from "lucide-react";
 
 import { Slider } from "@/components/ui/slider";
 import {
-  APPEARANCE_CHANGE_EVENT,
   MAX_PLAYLIST_WIDTH,
   MIN_PLAYLIST_WIDTH,
-  notifyAppearanceChange,
-  readStoredPlaylistWidth,
-  setPlaylistWidth,
-  storePlaylistWidth,
+  type AppearanceControlProps,
 } from "@/react-app/lib/appearance";
 
-export function PlaylistWidthSlider() {
-  const [width, setWidth] = useState(readStoredPlaylistWidth);
-
-  useEffect(() => {
-    const handleAppearanceChange = () => setWidth(readStoredPlaylistWidth());
-    window.addEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
-    return () => window.removeEventListener(APPEARANCE_CHANGE_EVENT, handleAppearanceChange);
-  }, []);
+export function PlaylistWidthSlider({ appearance, onChange }: AppearanceControlProps) {
+  const width = appearance.playlistWidth;
 
   return (
     <div className="space-y-2 rounded-sm p-1.5 text-xs hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
@@ -38,15 +27,7 @@ export function PlaylistWidthSlider() {
           if (typeof nextWidth !== "number") {
             return;
           }
-          setWidth(nextWidth);
-          setPlaylistWidth(nextWidth);
-        }}
-        onValueCommit={(values) => {
-          const nextWidth = values[0];
-          if (typeof nextWidth === "number") {
-            storePlaylistWidth(nextWidth);
-            notifyAppearanceChange("customization");
-          }
+          onChange({ playlistWidth: nextWidth });
         }}
         aria-label="Playlist width"
       />
