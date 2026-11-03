@@ -41,7 +41,7 @@ import type { PlaylistSummary, PlaylistSong } from "@/react-app/lib/types";
 
 const formatDuration = (seconds?: number | null) => {
   if (!seconds || seconds <= 0) {
-    return "--";
+    return "";
   }
 
   const rounded = Math.round(seconds);
@@ -52,7 +52,7 @@ const formatDuration = (seconds?: number | null) => {
 
 const formatListeningTime = (seconds?: number | null) => {
   if (!seconds || seconds <= 0) {
-    return "--";
+    return "";
   }
 
   const rounded = Math.round(seconds);
@@ -79,12 +79,12 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 
 const formatDate = (value?: string | null) => {
   if (!value) {
-    return "--";
+    return "";
   }
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "--";
+    return "";
   }
 
   return dateFormatter.format(date);
@@ -134,6 +134,8 @@ const tableSortsSetting = jsonSetting<Record<string, TableSort>>(
 
 type SongsColumnMeta = {
   sortKey?: SortKey;
+  /** Right-aligned, for durations and times. */
+  numeric?: boolean;
   headerClassName?: string;
   cellClassName?: string;
 };
@@ -229,7 +231,7 @@ function SongRow({ row, onSelect }: SongRowProps) {
   return (
     <TableRow
       data-state={isSelected ? "selected" : undefined}
-      className="h-8 cursor-pointer select-none focus-visible:outline-none"
+      className="group/row h-8 cursor-pointer select-none focus-visible:outline-none"
       onClick={() => onSelect(row.original)}
     >
       {row.getAllCells().map((cell, cellIndex) => {
@@ -489,9 +491,9 @@ export function PlaylistSongsView({
         meta: {
           sortKey: "artist",
           headerClassName: "w-[160px]",
-          cellClassName: "truncate",
+          cellClassName: "truncate text-muted-foreground",
         } satisfies SongsColumnMeta,
-        cell: ({ row }) => row.original.artist ?? "--",
+        cell: ({ row }) => row.original.artist ?? "",
       },
       {
         id: "album",
@@ -499,9 +501,9 @@ export function PlaylistSongsView({
         meta: {
           sortKey: "album",
           headerClassName: "w-[160px]",
-          cellClassName: "truncate",
+          cellClassName: "truncate text-muted-foreground",
         } satisfies SongsColumnMeta,
-        cell: ({ row }) => row.original.album ?? "--",
+        cell: ({ row }) => row.original.album ?? "",
       },
       {
         id: "duration",
@@ -509,6 +511,8 @@ export function PlaylistSongsView({
         meta: {
           sortKey: "duration",
           headerClassName: "w-[90px]",
+          cellClassName: "pr-6 text-right text-muted-foreground",
+          numeric: true,
         } satisfies SongsColumnMeta,
         cell: ({ row }) => formatDuration(row.original.duration),
       },
@@ -518,6 +522,8 @@ export function PlaylistSongsView({
         meta: {
           sortKey: "time",
           headerClassName: "w-[120px]",
+          cellClassName: "pr-6 text-right text-muted-foreground",
+          numeric: true,
         } satisfies SongsColumnMeta,
         cell: ({ row }) =>
           formatListeningTime(getListeningSecondsForPlaylist(row.original, activePlaylist)),
@@ -528,6 +534,7 @@ export function PlaylistSongsView({
         meta: {
           sortKey: "lastPlayed",
           headerClassName: "w-[120px]",
+          cellClassName: "text-muted-foreground",
         } satisfies SongsColumnMeta,
         cell: ({ row }) =>
           formatDate(
@@ -540,6 +547,7 @@ export function PlaylistSongsView({
         meta: {
           sortKey: "dateAdded",
           headerClassName: "w-[120px]",
+          cellClassName: "text-muted-foreground",
         } satisfies SongsColumnMeta,
         cell: ({ row }) => formatDate(row.original.uploaded_at),
       },
@@ -548,7 +556,9 @@ export function PlaylistSongsView({
         header: "",
         meta: {
           headerClassName: "w-12 text-right",
-          cellClassName: "text-right",
+          // Only shown on hover, or while its menu is open.
+          cellClassName:
+            "text-right opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100",
         } satisfies SongsColumnMeta,
         cell: ({ row }) => {
           return (
@@ -631,15 +641,17 @@ export function PlaylistSongsView({
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pt-3">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{activePlaylist.name}</h1>
-          <div className="flex min-w-0 shrink-0 items-center justify-end gap-3">
-            <div className="shrink-0 text-xs text-muted-foreground">
+          <div className="flex min-w-0 flex-1 items-baseline gap-3">
+            <h1 className="min-w-0 truncate text-lg font-semibold">{activePlaylist.name}</h1>
+            <span className="shrink-0 text-xs text-muted-foreground">
               {isLoading
                 ? "Loading songs..."
                 : hasSearch
                   ? `${visibleSongs.length} of ${songs.length} songs`
                   : `${songs.length} songs`}
-            </div>
+            </span>
+          </div>
+          <div className="flex min-w-0 shrink-0 items-center justify-end gap-3">
             <div className="relative w-80 max-w-[45vw]">
               <Search className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
               <Input
@@ -647,7 +659,8 @@ export function PlaylistSongsView({
                 placeholder="Search playlist"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
-                className="w-full pl-8"
+                // Borderless until focused; the search icon is enough of a hint.
+                className="w-full border-transparent bg-transparent pl-8 shadow-none dark:bg-transparent focus-visible:border-ring"
                 aria-label="Search playlist"
               />
             </div>
@@ -714,7 +727,9 @@ export function PlaylistSongsView({
                               <button
                                 type="button"
                                 className={cn(
-                                  "flex h-7 w-full items-center justify-start gap-1 px-2 py-0 text-left text-[14px] font-medium text-foreground outline-none hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                                  "group/sort flex h-7 w-full items-center justify-start gap-1 px-2 py-0 text-left text-[11px] tracking-wider text-muted-foreground uppercase outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                                  meta?.numeric && "flex-row-reverse pr-6 text-right",
+                                  isActive && "text-foreground",
                                   headerIndex === 0 && "pl-0",
                                 )}
                                 onClick={() => handleSort(sortKey)}
@@ -727,7 +742,7 @@ export function PlaylistSongsView({
                                     <ArrowDown className="size-3 text-muted-foreground" />
                                   )
                                 ) : (
-                                  <ArrowUpDown className="size-3 text-muted-foreground/60" />
+                                  <ArrowUpDown className="size-3 opacity-0 group-hover/sort:opacity-60" />
                                 )}
                               </button>
                             ) : (

@@ -124,7 +124,11 @@ const setFontColor = (color: string) => {
   root.style.setProperty("--popover-foreground", color);
   root.style.setProperty("--secondary-foreground", color);
   root.style.setProperty("--accent-foreground", color);
-  root.style.setProperty("--muted-foreground", color);
+  // Secondary text: the font color, toned down toward the background.
+  root.style.setProperty(
+    "--muted-foreground",
+    `color-mix(in oklch, ${color} 55%, var(--background))`,
+  );
   root.style.setProperty("--sidebar-foreground", color);
   root.style.setProperty("--sidebar-accent-foreground", color);
 };

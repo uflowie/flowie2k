@@ -173,7 +173,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarContent>
+      <SidebarContent className="gap-0">
         <SidebarGroup>
           <SidebarGroupLabel>Library</SidebarGroupLabel>
           <SidebarGroupContent>

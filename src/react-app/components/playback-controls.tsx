@@ -380,7 +380,7 @@ export function PlaybackControls() {
   );
 
   return (
-    <div className="bg-background px-3 py-2">
+    <div className="border-t bg-background px-3 py-2">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(28rem,44rem)_minmax(0,1fr)] lg:items-center">
         <div className="flex min-w-0 items-center gap-3">
           <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted/30">
@@ -395,11 +395,10 @@ export function PlaybackControls() {
           </div>
           <div className="flex min-w-0 flex-1 flex-col justify-center space-y-0.5">
             <p className="truncate text-sm font-medium">{currentSongLabel}</p>
-            {currentArtistLabel ? (
-              <p className="truncate text-xs text-muted-foreground">{currentArtistLabel}</p>
-            ) : null}
-            {currentAlbumLabel ? (
-              <p className="truncate text-xs text-muted-foreground">{currentAlbumLabel}</p>
+            {currentArtistLabel || currentAlbumLabel ? (
+              <p className="truncate text-xs text-muted-foreground">
+                {[currentArtistLabel, currentAlbumLabel].filter(Boolean).join(" · ")}
+              </p>
             ) : null}
           </div>
         </div>
