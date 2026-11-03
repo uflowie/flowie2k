@@ -56,10 +56,14 @@ const SMART_PLAYLIST_ICONS: Record<SmartPlaylistId, LucideIcon> = {
   "popular-365": CalendarRange,
 };
 
+const CUSTOMIZATION_OPEN_STORAGE_KEY = "sidebar.customizationOpen";
+
 export function AppSidebar() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
-  const [customizationOpen, setCustomizationOpen] = useState(true);
+  const [customizationOpen, setCustomizationOpen] = useState(
+    () => window.localStorage.getItem(CUSTOMIZATION_OPEN_STORAGE_KEY) !== "false",
+  );
   const queryClient = useQueryClient();
   const activePlaylist = usePlaybackStore((state) => state.activePlaylist);
   const setActivePlaylist = usePlaybackStore((state) => state.setActivePlaylist);
@@ -264,7 +268,13 @@ export function AppSidebar() {
               type="button"
               aria-controls="customization-content"
               aria-expanded={customizationOpen}
-              onClick={() => setCustomizationOpen((open) => !open)}
+              onClick={() => {
+                window.localStorage.setItem(
+                  CUSTOMIZATION_OPEN_STORAGE_KEY,
+                  String(!customizationOpen),
+                );
+                setCustomizationOpen(!customizationOpen);
+              }}
               className="w-full justify-between text-left"
             >
               <span>Customization</span>
