@@ -35,6 +35,7 @@ import {
 } from "@/react-app/lib/queries";
 import { usePlaybackStore } from "@/react-app/lib/playback-store";
 import { getSongTitle } from "@/react-app/lib/songs";
+import { SongCover } from "@/react-app/components/song-cover";
 import { jsonSetting, useLocalStorage } from "@/react-app/lib/local-storage";
 import type { PlaylistSummary, PlaylistSong } from "@/react-app/lib/types";
 
@@ -228,13 +229,16 @@ function SongRow({ row, onSelect }: SongRowProps) {
   return (
     <TableRow
       data-state={isSelected ? "selected" : undefined}
-      className="h-6 cursor-pointer select-none focus-visible:outline-none"
+      className="h-8 cursor-pointer select-none focus-visible:outline-none"
       onClick={() => onSelect(row.original)}
     >
       {row.getAllCells().map((cell, cellIndex) => {
         const meta = cell.column.columnDef.meta;
         return (
-          <TableCell key={cell.id} className={cn(meta?.cellClassName, cellIndex === 0 && "pl-0")}>
+          <TableCell
+            key={cell.id}
+            className={cn("py-1", meta?.cellClassName, cellIndex === 0 && "pl-0")}
+          >
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
           </TableCell>
         );
@@ -305,6 +309,7 @@ function SongActionsMenu({
             aria-haspopup="menu"
             aria-expanded={open}
             aria-label="Song actions"
+            className="size-6"
           >
             <MoreVertical />
           </Button>
@@ -471,7 +476,12 @@ export function PlaylistSongsView({
           headerClassName: "w-[360px]",
           cellClassName: "font-medium truncate",
         } satisfies SongsColumnMeta,
-        cell: ({ row }) => getSongTitle(row.original),
+        cell: ({ row }) => (
+          <div className="flex min-w-0 items-center gap-2.5">
+            <SongCover song={row.original} className="size-6" />
+            <span className="truncate">{getSongTitle(row.original)}</span>
+          </div>
+        ),
       },
       {
         id: "artist",
@@ -579,7 +589,8 @@ export function PlaylistSongsView({
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollElement,
-    estimateSize: () => 24,
+    // h-8 row + 1px border; keep in sync with SongRow so scrolling stays smooth.
+    estimateSize: () => 33,
     overscan: 30,
     getItemKey: getRowKey,
     enabled: Boolean(scrollElement),
