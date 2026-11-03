@@ -220,16 +220,21 @@ type PlaylistSongsViewProps = {
 
 type SongRowProps = {
   row: Row<typeof playlistTableFeatures, PlaylistSong>;
+  index: number;
+  /** Lets the virtualizer measure the real height, which grows with the font size. */
+  measureRef: (element: HTMLTableRowElement | null) => void;
   onSelect: (song: PlaylistSong) => void;
 };
 
-function SongRow({ row, onSelect }: SongRowProps) {
+function SongRow({ row, index, measureRef, onSelect }: SongRowProps) {
   const isSelected = usePlaybackStore(
     useCallback((state) => state.currentSongId === row.original.id, [row.original.id]),
   );
 
   return (
     <TableRow
+      ref={measureRef}
+      data-index={index}
       data-state={isSelected ? "selected" : undefined}
       className="group/row h-8 cursor-pointer select-none focus-visible:outline-none"
       onClick={() => onSelect(row.original)}
@@ -475,7 +480,8 @@ export function PlaylistSongsView({
         header: "Title",
         meta: {
           sortKey: "title",
-          headerClassName: "w-[360px]",
+          // No width: the title takes whatever space the other columns leave.
+          headerClassName: "",
           cellClassName: "font-medium truncate",
         } satisfies SongsColumnMeta,
         cell: ({ row }) => (
@@ -510,7 +516,7 @@ export function PlaylistSongsView({
         header: "Duration",
         meta: {
           sortKey: "duration",
-          headerClassName: "w-[90px]",
+          headerClassName: "w-[calc(90px*var(--font-scale))]",
           cellClassName: "pr-6 text-right text-muted-foreground",
           numeric: true,
         } satisfies SongsColumnMeta,
@@ -521,7 +527,7 @@ export function PlaylistSongsView({
         header: timeListenedLabel,
         meta: {
           sortKey: "time",
-          headerClassName: "w-[120px]",
+          headerClassName: "w-[calc(120px*var(--font-scale))]",
           cellClassName: "pr-6 text-right text-muted-foreground",
           numeric: true,
         } satisfies SongsColumnMeta,
@@ -533,7 +539,7 @@ export function PlaylistSongsView({
         header: "Last played",
         meta: {
           sortKey: "lastPlayed",
-          headerClassName: "w-[120px]",
+          headerClassName: "w-[calc(120px*var(--font-scale))]",
           cellClassName: "text-muted-foreground",
         } satisfies SongsColumnMeta,
         cell: ({ row }) =>
@@ -546,7 +552,7 @@ export function PlaylistSongsView({
         header: "Date added",
         meta: {
           sortKey: "dateAdded",
-          headerClassName: "w-[120px]",
+          headerClassName: "w-[calc(120px*var(--font-scale))]",
           cellClassName: "text-muted-foreground",
         } satisfies SongsColumnMeta,
         cell: ({ row }) => formatDate(row.original.uploaded_at),
@@ -599,7 +605,7 @@ export function PlaylistSongsView({
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollElement,
-    // h-8 row + 1px border; keep in sync with SongRow so scrolling stays smooth.
+    // h-8 row + 1px border at the default font size; rows are measured once rendered.
     estimateSize: () => 33,
     overscan: 30,
     getItemKey: getRowKey,
@@ -720,14 +726,14 @@ export function PlaylistSongsView({
                         return (
                           <TableHead
                             key={header.id}
-                            className={`p-0 text-[13px] ${meta?.headerClassName ?? ""}`}
+                            className={`p-0 text-[length:calc(13px*var(--font-scale))] ${meta?.headerClassName ?? ""}`}
                             aria-sort={ariaSort}
                           >
                             {sortKey ? (
                               <button
                                 type="button"
                                 className={cn(
-                                  "group/sort flex h-7 w-full items-center justify-start gap-1 px-2 py-0 text-left text-[11px] tracking-wider text-muted-foreground uppercase outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                                  "group/sort flex h-7 w-full items-center justify-start gap-1 px-2 py-0 text-left text-[length:calc(11px*var(--font-scale))] tracking-wider text-muted-foreground uppercase outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                                   meta?.numeric && "flex-row-reverse pr-6 text-right",
                                   isActive && "text-foreground",
                                   headerIndex === 0 && "pl-0",
@@ -769,7 +775,15 @@ export function PlaylistSongsView({
                     if (!row) {
                       return null;
                     }
-                    return <SongRow key={row.id} row={row} onSelect={handleSelectSong} />;
+                    return (
+                      <SongRow
+                        key={row.id}
+                        row={row}
+                        index={virtualRow.index}
+                        measureRef={rowVirtualizer.measureElement}
+                        onSelect={handleSelectSong}
+                      />
+                    );
                   })}
                   {paddingBottom > 0 ? (
                     <TableRow className="border-0 hover:bg-transparent">

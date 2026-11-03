@@ -12,6 +12,7 @@ import { AppearancePresets } from "@/react-app/components/appearance-presets";
 import { ArtworkPicker } from "@/react-app/components/artwork-picker";
 import { ArtworkPositionControls } from "@/react-app/components/artwork-position-controls";
 import { AppearanceColorControls } from "@/react-app/components/background-color-picker";
+import { FontSizeSlider } from "@/react-app/components/font-size-slider";
 import { PlaylistWidthSlider } from "@/react-app/components/playlist-width-slider";
 import { SidebarWidthSlider } from "@/react-app/components/sidebar-width-slider";
 import {
@@ -74,6 +75,9 @@ export function CustomizationSection() {
             </SidebarMenuItem>
             <SidebarMenuItem>
               <PlaylistWidthSlider {...controlProps} />
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <FontSizeSlider {...controlProps} />
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroupContent>

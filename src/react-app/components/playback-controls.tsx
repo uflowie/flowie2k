@@ -460,7 +460,7 @@ export function PlaybackControls() {
               <Repeat />
             </Button>
           </div>
-          <div className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-foreground">
+          <div className="mt-0.5 flex items-center gap-2 text-[calc(10px*var(--font-scale))] text-muted-foreground">
             <span className="w-10 text-right">{formatTime(displayCurrentTime)}</span>
             <Slider
               min={0}
@@ -494,7 +494,7 @@ export function PlaybackControls() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-          <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground [&_svg]:text-foreground/70">
+          <label className="flex items-center gap-1.5 text-[calc(10px*var(--font-scale))] text-muted-foreground [&_svg]:text-foreground/70">
             <Gauge className="size-3.5" />
             <Slider
               min={0.5}
@@ -507,7 +507,7 @@ export function PlaybackControls() {
             />
             <span className="w-8 text-right">{Math.round(playbackRate * 100)}%</span>
           </label>
-          <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground [&_svg]:text-foreground/70">
+          <label className="flex items-center gap-1.5 text-[calc(10px*var(--font-scale))] text-muted-foreground [&_svg]:text-foreground/70">
             <Volume2 className="size-3.5" />
             <Slider
               min={0}

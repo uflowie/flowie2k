@@ -17,6 +17,10 @@ export const MAX_PLAYLIST_WIDTH = 100;
 export const DEFAULT_SIDEBAR_WIDTH = 208;
 export const MIN_SIDEBAR_WIDTH = 160;
 export const MAX_SIDEBAR_WIDTH = 400;
+// Text size as a percentage of the default.
+export const DEFAULT_FONT_SIZE = 100;
+export const MIN_FONT_SIZE = 80;
+export const MAX_FONT_SIZE = 140;
 export const DEFAULT_ARTWORK_POSITION = 0;
 export const MIN_ARTWORK_POSITION = -125;
 export const MAX_ARTWORK_POSITION = 125;
@@ -73,6 +77,7 @@ export type AppearanceValues = {
   artworkPositionY: number;
   playlistWidth: number;
   sidebarWidth: number;
+  fontSize: number;
 };
 
 /** Presets cover the look (colors and artwork), not the layout widths. */
@@ -171,6 +176,12 @@ const setPlaylistWidth = (width: number) => {
   document.documentElement.style.setProperty("--playlist-pane-width", `${clampedWidth}%`);
 };
 
+// Scales all text (see --font-scale in index.css), but not spacing or icons.
+const setFontSize = (size: number) => {
+  const clampedSize = clamp(size, MIN_FONT_SIZE, MAX_FONT_SIZE);
+  document.documentElement.style.setProperty("--font-scale", String(clampedSize / 100));
+};
+
 const setSidebarWidth = (width: number) => {
   const clampedWidth = clamp(width, MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH);
   document.documentElement.style.setProperty("--app-sidebar-width", `${clampedWidth}px`);
@@ -212,6 +223,10 @@ const playlistWidthSetting = numberSetting("appearance.playlistWidth", DEFAULT_P
   min: MIN_PLAYLIST_WIDTH,
   max: MAX_PLAYLIST_WIDTH,
 });
+const fontSizeSetting = numberSetting("appearance.fontSize", DEFAULT_FONT_SIZE, {
+  min: MIN_FONT_SIZE,
+  max: MAX_FONT_SIZE,
+});
 const sidebarWidthSetting = numberSetting("appearance.sidebarWidth", DEFAULT_SIDEBAR_WIDTH, {
   min: MIN_SIDEBAR_WIDTH,
   max: MAX_SIDEBAR_WIDTH,
@@ -233,6 +248,7 @@ const APPEARANCE: {
   artworkPositionY: { setting: artworkPositionYSetting, apply: setArtworkPositionY },
   playlistWidth: { setting: playlistWidthSetting, apply: setPlaylistWidth },
   sidebarWidth: { setting: sidebarWidthSetting, apply: setSidebarWidth },
+  fontSize: { setting: fontSizeSetting, apply: setFontSize },
 };
 const APPEARANCE_KEYS = Object.keys(APPEARANCE) as (keyof AppearanceValues)[];
 

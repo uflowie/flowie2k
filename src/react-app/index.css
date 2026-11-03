@@ -3,6 +3,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Text sizes follow the font size setting (--font-scale); spacing and icons don't. */
+@theme inline {
+  --text-xs: calc(0.75rem * var(--font-scale));
+  --text-sm: calc(0.875rem * var(--font-scale));
+  --text-base: calc(1rem * var(--font-scale));
+  --text-lg: calc(1.125rem * var(--font-scale));
+  --text-xl: calc(1.25rem * var(--font-scale));
+  --text-2xl: calc(1.5rem * var(--font-scale));
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -42,6 +52,7 @@
 }
 
 :root {
+  --font-scale: 1;
   --radius: 0.375rem;
   --app-font-family: "Ubuntu Mono", "Liberation Mono", Consolas, monospace;
   --artwork-color: #6f8f79;
@@ -142,6 +153,7 @@
   body {
     @apply bg-background text-foreground cursor-default antialiased;
     font-family: var(--app-font-family);
+    font-size: calc(1rem * var(--font-scale));
     font-variant-numeric: tabular-nums;
   }
 
