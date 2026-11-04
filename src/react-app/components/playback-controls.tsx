@@ -14,7 +14,7 @@ import { useShallow } from "zustand/react/shallow";
 
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { getStreamUrl, getThumbnailUrl, useSongsQuery } from "@/react-app/lib/queries";
+import { getAudioUrl, getThumbnailUrl, useSongsQuery } from "@/react-app/lib/queries";
 import { usePlaybackStore } from "@/react-app/lib/playback-store";
 import { getSongTitle } from "@/react-app/lib/songs";
 import { cacheAudio, getCachedAudio } from "@/react-app/lib/audio-cache";
@@ -196,12 +196,20 @@ export function PlaybackControls() {
     void (async () => {
       const cached = await getCachedAudio(storageKey, fileSize);
       if (controller.signal.aborted) return;
-      const streamUrl = getStreamUrl(currentSongId);
+      const streamUrl = getAudioUrl(storageKey);
       if (cached) objectUrl = URL.createObjectURL(cached);
       audio.src = objectUrl ?? streamUrl;
       audio.load();
       sourceReadyRef.current = true;
-      if (!cached) void cacheAudio(storageKey, fileSize, streamUrl, controller.signal);
+      if (!cached) {
+        // Wait until playback starts so the full-file cache download doesn't
+        // compete with the audio element for bandwidth before the first note.
+        audio.addEventListener(
+          "playing",
+          () => void cacheAudio(storageKey, fileSize, streamUrl, controller.signal),
+          { once: true, signal: controller.signal },
+        );
+      }
       if (usePlaybackStore.getState().isPlaying) {
         try {
           await audio.play();

@@ -27,7 +27,9 @@ export const recordListen = (payload: { track_id: number; playlist_id?: number }
   });
 
 // Plain URLs for <audio>/<img> elements, which can't use fetch().
-export const getStreamUrl = (id: number) => `/api/songs/${id}/stream`;
+// `storageKey` is `tracks/<file>`, served with Range support at /api/audio/<file>.
+export const getAudioUrl = (storageKey: string) =>
+  `/api/audio/${encodeURIComponent(storageKey.split("/").pop() ?? "")}`;
 
 // `thumbnailPath` is the storage key (`thumbnails/<file>`), served at /api/thumbnails/<file>.
 export const getThumbnailUrl = (thumbnailPath: string) =>

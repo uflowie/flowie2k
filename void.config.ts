@@ -29,13 +29,6 @@ export default defineConfig({
       {
         binding: "STORAGE",
         bucket_name: "music-server-storage",
-        // Local S3 credentials so presigned playback URLs work in dev.
-        local_dev: {
-          experimental_s3_credentials: {
-            accessKeyId: "flowie2k-local",
-            secretAccessKey: "flowie2k-local-development-only",
-          },
-        },
       },
     ],
   },
