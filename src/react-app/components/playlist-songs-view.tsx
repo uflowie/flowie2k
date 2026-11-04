@@ -471,8 +471,8 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
       },
       cell: ({ row, getValue }) => (
         <div className="flex min-w-0 items-center gap-2.5">
-          {/* No covers on phones: they're full-size images, and iOS flickers decoding them while scrolling. */}
-          {isMobile ? null : <SongCover song={row.original} className="size-6" />}
+          {/* Larger on phones, where rows are taller. */}
+          <SongCover song={row.original} className="size-9 md:size-6" />
           <div className="flex min-w-0 flex-col">
             <span className="truncate">{getValue()}</span>
             {/* Phones have no artist column, so the artist goes under the title. */}

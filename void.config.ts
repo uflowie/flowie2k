@@ -25,6 +25,8 @@ export default defineConfig({
         database_id: "bb28ec25-ac20-4408-a3d3-d4e6a51c0bdc",
       },
     ],
+    // Cloudflare Images, for the small list-view covers.
+    images: { binding: "IMAGES" },
     r2_buckets: [
       {
         binding: "STORAGE",

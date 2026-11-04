@@ -16,6 +16,9 @@
         "database_id": "bb28ec25-ac20-4408-a3d3-d4e6a51c0bdc"
       }
     ],
+    "images": {
+      "binding": "IMAGES"
+    },
     "r2_buckets": [
       {
         "binding": "STORAGE",
@@ -45,7 +48,10 @@
         "binding": "STORAGE",
         "bucket_name": "music-server-storage"
       }
-    ]
+    ],
+    "images": {
+      "binding": "IMAGES"
+    }
   },
-  "text": "{\n  \"name\": \"flowie2k\",\n  \"account_id\": \"dde4706e29038f1d8466e82f2f91603b\",\n  \"workers_dev\": true,\n  \"preview_urls\": true,\n  \"observability\": {\n    \"enabled\": true\n  },\n  \"upload_source_maps\": true,\n  \"d1_databases\": [\n    {\n      \"binding\": \"DB\",\n      \"database_name\": \"music-server-db\",\n      \"database_id\": \"bb28ec25-ac20-4408-a3d3-d4e6a51c0bdc\",\n      \"migrations_dir\": \"./db/migrations\"\n    }\n  ],\n  \"r2_buckets\": [\n    {\n      \"binding\": \"STORAGE\",\n      \"bucket_name\": \"music-server-storage\"\n    }\n  ]\n}\n"
+  "text": "{\n  \"name\": \"flowie2k\",\n  \"account_id\": \"dde4706e29038f1d8466e82f2f91603b\",\n  \"workers_dev\": true,\n  \"preview_urls\": true,\n  \"observability\": {\n    \"enabled\": true\n  },\n  \"upload_source_maps\": true,\n  \"d1_databases\": [\n    {\n      \"binding\": \"DB\",\n      \"database_name\": \"music-server-db\",\n      \"database_id\": \"bb28ec25-ac20-4408-a3d3-d4e6a51c0bdc\",\n      \"migrations_dir\": \"./db/migrations\"\n    }\n  ],\n  \"r2_buckets\": [\n    {\n      \"binding\": \"STORAGE\",\n      \"bucket_name\": \"music-server-storage\"\n    }\n  ],\n  \"images\": {\n    \"binding\": \"IMAGES\"\n  }\n}\n"
 }

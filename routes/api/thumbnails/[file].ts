@@ -2,12 +2,19 @@ import { defineHandler } from "void";
 import { storage } from "void/storage";
 import { z } from "zod";
 
-// GET /api/thumbnails/:file — album art, addressed by its storage key
+import { getSmallCover } from "@/server/thumbnails";
+
+// GET /api/thumbnails/:file?size=small — album art, addressed by its storage key.
+// The small size is for lists; without it, the original upload is served.
 export const GET = defineHandler.withValidator({
   // A single file name, so requests can't reach objects outside thumbnails/.
   params: z.object({ file: z.string().regex(/^[\w-]+\.\w+$/) }),
-})(async (c, { params: { file } }) => {
-  const object = await storage.get(`thumbnails/${file}`);
+  query: z.object({ size: z.literal("small").optional() }),
+})(async (c, { params: { file }, query: { size } }) => {
+  const object =
+    size === "small"
+      ? await getSmallCover(c.env.IMAGES, file)
+      : await storage.get(`thumbnails/${file}`);
   if (!object) {
     return c.json({ error: "Thumbnail not found" }, 404);
   }

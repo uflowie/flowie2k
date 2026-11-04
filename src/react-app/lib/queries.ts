@@ -27,8 +27,9 @@ export const getAudioUrl = (storageKey: string) =>
   `/api/audio/${encodeURIComponent(storageKey.split("/").pop() ?? "")}`;
 
 // `thumbnailPath` is the storage key (`thumbnails/<file>`), served at /api/thumbnails/<file>.
-export const getThumbnailUrl = (thumbnailPath: string) =>
-  `/api/thumbnails/${encodeURIComponent(thumbnailPath.split("/").pop() ?? "")}`;
+// Lists use the small size; the playing song's art uses the original.
+export const getThumbnailUrl = (thumbnailPath: string, size?: "small") =>
+  `/api/thumbnails/${encodeURIComponent(thumbnailPath.split("/").pop() ?? "")}${size ? `?size=${size}` : ""}`;
 
 const playlistsQueryOptions = () => ({
   queryKey: LIBRARY_QUERY_KEYS.playlists,

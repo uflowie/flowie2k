@@ -40,7 +40,7 @@ export function SongCover({ song, className }: SongCoverProps) {
     >
       {showImage ? (
         <img
-          src={getThumbnailUrl(song.thumbnail_path!)}
+          src={getThumbnailUrl(song.thumbnail_path!, "small")}
           alt=""
           loading="lazy"
           decoding="async"
