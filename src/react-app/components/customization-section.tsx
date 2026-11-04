@@ -9,15 +9,14 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { AppearancePresets } from "@/react-app/components/appearance-presets";
+import { Slider } from "@/components/ui/slider";
 import { ArtworkPicker } from "@/react-app/components/artwork-picker";
-import { ArtworkPositionControls } from "@/react-app/components/artwork-position-controls";
 import { AppearanceColorControls } from "@/react-app/components/background-color-picker";
-import { FontSizeSlider } from "@/react-app/components/font-size-slider";
-import { PlaylistWidthSlider } from "@/react-app/components/playlist-width-slider";
-import { SidebarWidthSlider } from "@/react-app/components/sidebar-width-slider";
 import {
   applyAppearance,
   readAppearance,
+  SLIDER_KEYS,
+  SLIDERS,
   storeAppearance,
   type AppearanceValues,
 } from "@/react-app/lib/appearance";
@@ -67,19 +66,37 @@ export function CustomizationSection() {
             <SidebarMenuItem>
               <ArtworkPicker {...controlProps} />
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <ArtworkPositionControls {...controlProps} />
-            </SidebarMenuItem>
-            {/* Layout widths only apply next to a docked sidebar, not on phones. */}
-            <SidebarMenuItem className="hidden md:block">
-              <SidebarWidthSlider {...controlProps} />
-            </SidebarMenuItem>
-            <SidebarMenuItem className="hidden md:block">
-              <PlaylistWidthSlider {...controlProps} />
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <FontSizeSlider {...controlProps} />
-            </SidebarMenuItem>
+            {SLIDER_KEYS.map((key) => {
+              const {
+                label,
+                ariaLabel = label,
+                icon: Icon,
+                format,
+                desktopOnly,
+                ...range
+              } = SLIDERS[key];
+              return (
+                <SidebarMenuItem key={key} className={desktopOnly ? "hidden md:block" : undefined}>
+                  <div className="space-y-2 rounded-sm p-1.5 text-xs hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                    <div className="flex items-center gap-2">
+                      <Icon className="size-4 shrink-0" />
+                      <span className="min-w-0 flex-1 truncate">{label}</span>
+                      <output className="w-11 text-right tabular-nums">
+                        {format(appearance[key])}
+                      </output>
+                    </div>
+                    <Slider
+                      min={range.min}
+                      max={range.max}
+                      step={range.step}
+                      value={[appearance[key]]}
+                      onValueChange={([value]) => updateAppearance({ [key]: value })}
+                      aria-label={ariaLabel}
+                    />
+                  </div>
+                </SidebarMenuItem>
+              );
+            })}
           </SidebarMenu>
         </SidebarGroupContent>
       ) : null}
