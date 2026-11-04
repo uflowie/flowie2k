@@ -20,12 +20,6 @@ export const uploadSong = (file: File) =>
     body: file,
   });
 
-export const recordListen = (payload: { track_id: number; playlist_id?: number }) =>
-  fetch("/api/analytics/listen", {
-    method: "POST",
-    body: payload,
-  });
-
 // Plain URLs for <audio>/<img> elements, which can't use fetch().
 // `storageKey` is `tracks/<file>`, served with Range support at /api/audio/<file>.
 export const getAudioUrl = (storageKey: string) =>

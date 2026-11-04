@@ -1,14 +1,15 @@
-import { recordListen } from "@/react-app/lib/queries";
 import { usePlaybackStore } from "@/react-app/lib/playback-store";
 
 const TRACKER_KEY = "__flowieListenTrackerStarted";
+const FLUSH_INTERVAL_MS = 60_000;
 
-type PlaybackSnapshot = {
-  currentSongId: number | null;
-  isPlaying: boolean;
-  playlistId: number | undefined;
-};
+type Listen = { track_id: number; playlist_id?: number };
+type Pending = Listen & { ms: number };
 
+/**
+ * Adds up listening time per track on the client and sends it in batches:
+ * once a minute, and when the page is hidden or unloaded.
+ */
 export const startListenTracker = () => {
   if (typeof window === "undefined") {
     return;
@@ -22,68 +23,72 @@ export const startListenTracker = () => {
   }
   windowAny[TRACKER_KEY] = true;
 
-  let intervalId: number | null = null;
-  const state: PlaybackSnapshot = {
-    currentSongId: null,
-    isPlaying: false,
-    playlistId: undefined,
-  };
+  // What's playing right now (null when paused), and up to when it's been counted.
+  let current: (Listen & { key: string }) | null = null;
+  let countedUntil = 0;
+  // Unsent time, keyed by track + playlist.
+  const pending = new Map<string, Pending>();
 
-  const stopInterval = () => {
-    if (intervalId) {
-      window.clearInterval(intervalId);
-      intervalId = null;
-    }
-  };
-
-  const tick = () => {
-    if (!state.currentSongId || !state.isPlaying) {
+  /** Credits time played since the last call to whatever is playing. */
+  const accrue = () => {
+    if (!current) {
       return;
     }
-    void recordListen({
-      track_id: state.currentSongId,
-      playlist_id: state.playlistId,
-    }).catch(() => {
-      // Listening analytics are best-effort.
-    });
+    const now = performance.now();
+    const entry = pending.get(current.key) ?? { ...current, ms: 0 };
+    entry.ms += now - countedUntil;
+    pending.set(current.key, entry);
+    countedUntil = now;
+  };
+
+  const flush = () => {
+    accrue();
+    const listens: (Listen & { seconds: number })[] = [];
+    for (const [key, entry] of pending) {
+      const seconds = Math.round(entry.ms / 1000);
+      if (seconds > 0) {
+        listens.push({ track_id: entry.track_id, playlist_id: entry.playlist_id, seconds });
+        // Can go slightly negative; the rounding error carries over to the next flush.
+        entry.ms -= seconds * 1000;
+      }
+      if (key !== current?.key) pending.delete(key);
+    }
+    if (listens.length === 0) {
+      return;
+    }
+    // Plain fetch with keepalive (not void/client's fetch) so it survives the page unloading.
+    void window
+      .fetch("/api/analytics/listen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listens }),
+        keepalive: true,
+      })
+      .catch(() => {
+        // Listening analytics are best-effort.
+      });
   };
 
   const updateState = (snapshot: ReturnType<typeof usePlaybackStore.getState>) => {
-    const nextPlaylistId =
-      snapshot.playbackPlaylist.type === "custom" ? snapshot.playbackPlaylist.id : undefined;
-    const nextSongId = snapshot.currentSongId;
-    const nextIsPlaying = snapshot.isPlaying;
-    const shouldRun = Boolean(nextSongId && nextIsPlaying);
-
-    const changed =
-      state.currentSongId !== nextSongId ||
-      state.isPlaying !== nextIsPlaying ||
-      state.playlistId !== nextPlaylistId;
-
-    state.currentSongId = nextSongId;
-    state.isPlaying = nextIsPlaying;
-    state.playlistId = nextPlaylistId;
-
-    if (!shouldRun) {
-      stopInterval();
+    const { currentSongId, isPlaying, playbackPlaylist } = snapshot;
+    const playlistId = playbackPlaylist.type === "custom" ? playbackPlaylist.id : undefined;
+    const key = currentSongId && isPlaying ? `${currentSongId}:${playlistId ?? ""}` : null;
+    if (key === (current?.key ?? null)) {
       return;
     }
-
-    if (changed) {
-      stopInterval();
-      intervalId = window.setInterval(tick, 1000);
-    }
+    accrue();
+    current =
+      key && currentSongId ? { key, track_id: currentSongId, playlist_id: playlistId } : null;
+    countedUntil = performance.now();
   };
 
-  const unsubscribe = usePlaybackStore.subscribe(updateState);
+  usePlaybackStore.subscribe(updateState);
   updateState(usePlaybackStore.getState());
 
-  window.addEventListener(
-    "beforeunload",
-    () => {
-      stopInterval();
-      unsubscribe();
-    },
-    { once: true },
-  );
+  window.setInterval(flush, FLUSH_INTERVAL_MS);
+  // `visibilitychange` is the last reliable signal on mobile; `pagehide` covers desktop unloads.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flush();
+  });
+  window.addEventListener("pagehide", flush);
 };
