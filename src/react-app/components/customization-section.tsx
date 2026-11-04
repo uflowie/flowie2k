@@ -70,10 +70,11 @@ export function CustomizationSection() {
             <SidebarMenuItem>
               <ArtworkPositionControls {...controlProps} />
             </SidebarMenuItem>
-            <SidebarMenuItem>
+            {/* Layout widths only apply next to a docked sidebar, not on phones. */}
+            <SidebarMenuItem className="hidden md:block">
               <SidebarWidthSlider {...controlProps} />
             </SidebarMenuItem>
-            <SidebarMenuItem>
+            <SidebarMenuItem className="hidden md:block">
               <PlaylistWidthSlider {...controlProps} />
             </SidebarMenuItem>
             <SidebarMenuItem>

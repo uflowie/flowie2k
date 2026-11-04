@@ -8,6 +8,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
@@ -57,6 +58,11 @@ export function AppSidebar() {
   const activePlaylist = usePlaybackStore((state) => state.activePlaylist);
   const setActivePlaylist = usePlaybackStore((state) => state.setActivePlaylist);
   const navigate = useNavigate();
+  const { isMobile, setOpenMobile } = useSidebar();
+  // On phones the sidebar covers the page, so close it once a playlist is picked.
+  const closeOnMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
   const [folderUploadProgress, setFolderUploadProgress] = useState<{
     total: number;
     completed: number;
@@ -118,6 +124,7 @@ export function AppSidebar() {
           name: data.name,
         } as const;
         setActivePlaylist(playlist);
+        closeOnMobile();
         void navigate({
           to: "/playlists/$playlistId",
           params: { playlistId: String(playlist.id) },
@@ -188,7 +195,8 @@ export function AppSidebar() {
                   <span>Upload Song</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              <SidebarMenuItem>
+              {/* Phones (iOS in particular) can't pick folders. */}
+              <SidebarMenuItem className="hidden md:block">
                 <SidebarMenuButton
                   type="button"
                   disabled={uploadMutation.isPending || isFolderUploading}
@@ -271,7 +279,10 @@ export function AppSidebar() {
                       <Link
                         to="/playlists/$playlistId"
                         params={{ playlistId: playlist.id }}
-                        onClick={() => setActivePlaylist(playlist)}
+                        onClick={() => {
+                          setActivePlaylist(playlist);
+                          closeOnMobile();
+                        }}
                         onMouseEnter={() => prefetchPlaylist(playlist)}
                         onFocus={() => prefetchPlaylist(playlist)}
                       >
@@ -311,7 +322,10 @@ export function AppSidebar() {
                         <Link
                           to="/playlists/$playlistId"
                           params={{ playlistId: String(playlist.id) }}
-                          onClick={() => setActivePlaylist(playlistData)}
+                          onClick={() => {
+                            setActivePlaylist(playlistData);
+                            closeOnMobile();
+                          }}
                           onMouseEnter={() => prefetchPlaylist(playlistData)}
                           onFocus={() => prefetchPlaylist(playlistData)}
                         >

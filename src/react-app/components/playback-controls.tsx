@@ -494,20 +494,24 @@ export function PlaybackControls() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-          <label className="flex items-center gap-1.5 text-[calc(10px*var(--font-scale))] text-muted-foreground [&_svg]:text-foreground/70">
-            <Gauge className="size-3.5" />
+          {/* On phones the speed slider gets a full-width row like the seek bar, so it's easy to hit. */}
+          <label className="flex w-full items-center gap-2 text-[calc(10px*var(--font-scale))] text-muted-foreground md:w-auto md:gap-1.5 [&_svg]:text-foreground/70">
+            <span className="flex w-10 justify-end md:w-auto">
+              <Gauge className="size-3.5" />
+            </span>
             <Slider
               min={0.5}
               max={1.5}
               step={0.01}
               value={playbackRateValue}
               onValueChange={handlePlaybackRateChange}
-              className="w-20"
+              className="-my-2 w-full py-2 md:my-0 md:w-20 md:py-0"
               aria-label="Playback speed"
             />
-            <span className="w-8 text-right">{Math.round(playbackRate * 100)}%</span>
+            <span className="w-10 md:w-8 md:text-right">{Math.round(playbackRate * 100)}%</span>
           </label>
-          <label className="flex items-center gap-1.5 text-[calc(10px*var(--font-scale))] text-muted-foreground [&_svg]:text-foreground/70">
+          {/* Phones have hardware volume keys, and iOS ignores volume set from the page. */}
+          <label className="hidden items-center gap-1.5 md:flex text-[calc(10px*var(--font-scale))] text-muted-foreground [&_svg]:text-foreground/70">
             <Volume2 className="size-3.5" />
             <Slider
               min={0}

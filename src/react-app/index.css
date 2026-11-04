@@ -52,6 +52,8 @@
 }
 
 :root {
+  /* Native controls (selects, color pickers, scrollbars) follow the dark theme, notably on iOS. */
+  color-scheme: dark;
   --font-scale: 1;
   --radius: 0.375rem;
   --app-font-family: "Ubuntu Mono", "Liberation Mono", Consolas, monospace;

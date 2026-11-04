@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, MoreVertical, Search } from "lucide-react";
 
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -134,6 +137,8 @@ const tableSortsSetting = jsonSetting<Record<string, TableSort>>(
 
 type SongsColumnMeta = {
   sortKey?: SortKey;
+  /** Left out on phones, where only the title, time listened and actions fit. */
+  hideOnMobile?: boolean;
   /** Right-aligned, for durations and times. */
   numeric?: boolean;
   headerClassName?: string;
@@ -236,7 +241,7 @@ function SongRow({ row, index, measureRef, onSelect }: SongRowProps) {
       ref={measureRef}
       data-index={index}
       data-state={isSelected ? "selected" : undefined}
-      className="group/row h-8 cursor-pointer select-none focus-visible:outline-none"
+      className="group/row h-12 cursor-pointer select-none focus-visible:outline-none md:h-8"
       onClick={() => onSelect(row.original)}
     >
       {row.getAllCells().map((cell, cellIndex) => {
@@ -316,7 +321,7 @@ function SongActionsMenu({
             aria-haspopup="menu"
             aria-expanded={open}
             aria-label="Song actions"
-            className="size-6"
+            className="size-9 md:size-6"
           >
             <MoreVertical />
           </Button>
@@ -386,6 +391,59 @@ function SongActionsMenu({
         </PopoverContent>
       ) : null}
     </Popover>
+  );
+}
+
+const SORT_LABELS: Record<SortKey, string> = {
+  title: "Title",
+  artist: "Artist",
+  album: "Album",
+  duration: "Duration",
+  time: "Time listened",
+  lastPlayed: "Last played",
+  dateAdded: "Date added",
+};
+
+type MobileSortControlProps = {
+  sort: TableSort | null;
+  timeListenedLabel: string;
+  onSort: (key: SortKey) => void;
+};
+
+/** Phones hide most columns, so their sort options live in a picker instead. */
+function MobileSortControl({ sort, timeListenedLabel, onSort }: MobileSortControlProps) {
+  const DirectionIcon = sort?.direction === "asc" ? ArrowUp : ArrowDown;
+
+  return (
+    <div className="flex shrink-0 items-center md:hidden">
+      <select
+        value={sort?.key ?? ""}
+        onChange={(event) => onSort(event.target.value as SortKey)}
+        className="h-9 appearance-none rounded-sm bg-transparent px-2 text-xs text-muted-foreground outline-none"
+        aria-label="Sort by"
+      >
+        <option value="" disabled>
+          Sort
+        </option>
+        {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+          <option key={key} value={key}>
+            {key === "time" ? timeListenedLabel : SORT_LABELS[key]}
+          </option>
+        ))}
+      </select>
+      {sort ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => onSort(sort.key)}
+          aria-label={sort.direction === "asc" ? "Sorted ascending" : "Sorted descending"}
+          className="size-9 text-muted-foreground"
+        >
+          <DirectionIcon className="size-4" />
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -473,8 +531,9 @@ export function PlaylistSongsView({
       ? `Time listened (${activePlaylist.days}d)`
       : "Time listened";
 
+  const isMobile = useIsMobile();
   const columns = useMemo<ColumnDef<typeof playlistTableFeatures, PlaylistSong>[]>(() => {
-    return [
+    const allColumns: ColumnDef<typeof playlistTableFeatures, PlaylistSong>[] = [
       {
         id: "title",
         header: "Title",
@@ -486,8 +545,17 @@ export function PlaylistSongsView({
         } satisfies SongsColumnMeta,
         cell: ({ row }) => (
           <div className="flex min-w-0 items-center gap-2.5">
-            <SongCover song={row.original} className="size-6" />
-            <span className="truncate">{getSongTitle(row.original)}</span>
+            {/* No covers on phones: they're full-size images, and iOS flickers decoding them while scrolling. */}
+            {isMobile ? null : <SongCover song={row.original} className="size-6" />}
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate">{getSongTitle(row.original)}</span>
+              {/* Phones have no artist column, so the artist goes under the title. */}
+              {row.original.artist ? (
+                <span className="truncate text-xs font-normal text-muted-foreground md:hidden">
+                  {row.original.artist}
+                </span>
+              ) : null}
+            </div>
           </div>
         ),
       },
@@ -496,6 +564,7 @@ export function PlaylistSongsView({
         header: "Artist",
         meta: {
           sortKey: "artist",
+          hideOnMobile: true,
           headerClassName: "w-[160px]",
           cellClassName: "truncate text-muted-foreground",
         } satisfies SongsColumnMeta,
@@ -506,6 +575,7 @@ export function PlaylistSongsView({
         header: "Album",
         meta: {
           sortKey: "album",
+          hideOnMobile: true,
           headerClassName: "w-[160px]",
           cellClassName: "truncate text-muted-foreground",
         } satisfies SongsColumnMeta,
@@ -516,6 +586,7 @@ export function PlaylistSongsView({
         header: "Duration",
         meta: {
           sortKey: "duration",
+          hideOnMobile: true,
           headerClassName: "w-[calc(90px*var(--font-scale))]",
           cellClassName: "pr-6 text-right text-muted-foreground",
           numeric: true,
@@ -527,8 +598,8 @@ export function PlaylistSongsView({
         header: timeListenedLabel,
         meta: {
           sortKey: "time",
-          headerClassName: "w-[calc(120px*var(--font-scale))]",
-          cellClassName: "pr-6 text-right text-muted-foreground",
+          headerClassName: "w-[calc(84px*var(--font-scale))] md:w-[calc(120px*var(--font-scale))]",
+          cellClassName: "pr-3 text-right text-muted-foreground md:pr-6",
           numeric: true,
         } satisfies SongsColumnMeta,
         cell: ({ row }) =>
@@ -539,6 +610,7 @@ export function PlaylistSongsView({
         header: "Last played",
         meta: {
           sortKey: "lastPlayed",
+          hideOnMobile: true,
           headerClassName: "w-[calc(120px*var(--font-scale))]",
           cellClassName: "text-muted-foreground",
         } satisfies SongsColumnMeta,
@@ -552,6 +624,7 @@ export function PlaylistSongsView({
         header: "Date added",
         meta: {
           sortKey: "dateAdded",
+          hideOnMobile: true,
           headerClassName: "w-[calc(120px*var(--font-scale))]",
           cellClassName: "text-muted-foreground",
         } satisfies SongsColumnMeta,
@@ -562,9 +635,9 @@ export function PlaylistSongsView({
         header: "",
         meta: {
           headerClassName: "w-12 text-right",
-          // Only shown on hover, or while its menu is open.
+          // With a mouse, only shown on hover or while its menu is open; always shown on touch.
           cellClassName:
-            "text-right opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100 has-[[aria-expanded=true]]:opacity-100",
+            "text-right transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:focus-within:opacity-100 pointer-fine:has-[[aria-expanded=true]]:opacity-100",
         } satisfies SongsColumnMeta,
         cell: ({ row }) => {
           return (
@@ -582,7 +655,10 @@ export function PlaylistSongsView({
         },
       },
     ];
+    // Left out rather than hidden with CSS: a fixed-layout table keeps hidden columns' widths.
+    return isMobile ? allColumns.filter((column) => !column.meta?.hideOnMobile) : allColumns;
   }, [
+    isMobile,
     activePlaylist,
     timeListenedLabel,
     playlistsLoading,
@@ -646,8 +722,9 @@ export function PlaylistSongsView({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pt-3">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex min-w-0 flex-1 items-baseline gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <SidebarTrigger className="-ml-1 size-9 md:hidden [&_svg]:size-5" />
             <h1 className="min-w-0 truncate text-lg font-semibold">{activePlaylist.name}</h1>
             <span className="shrink-0 text-xs text-muted-foreground">
               {isLoading
@@ -657,8 +734,8 @@ export function PlaylistSongsView({
                   : `${songs.length} songs`}
             </span>
           </div>
-          <div className="flex min-w-0 shrink-0 items-center justify-end gap-3">
-            <div className="relative w-80 max-w-[45vw]">
+          <div className="flex w-full min-w-0 items-center justify-end gap-2 md:w-auto md:shrink-0">
+            <div className="relative flex-1 md:w-80 md:max-w-[45vw] md:flex-none">
               <Search className="text-muted-foreground pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
               <Input
                 type="search"
@@ -670,6 +747,11 @@ export function PlaylistSongsView({
                 aria-label="Search playlist"
               />
             </div>
+            <MobileSortControl
+              sort={tableSort}
+              timeListenedLabel={timeListenedLabel}
+              onSort={handleSort}
+            />
           </div>
         </div>
         {isLoading ? (
@@ -726,7 +808,10 @@ export function PlaylistSongsView({
                         return (
                           <TableHead
                             key={header.id}
-                            className={`p-0 text-[length:calc(13px*var(--font-scale))] ${meta?.headerClassName ?? ""}`}
+                            className={cn(
+                              "p-0 text-[length:calc(13px*var(--font-scale))]",
+                              meta?.headerClassName,
+                            )}
                             aria-sort={ariaSort}
                           >
                             {sortKey ? (
