@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 
 import { getPlaylistKey, resolvePlaylist } from "@/react-app/lib/playlists";
 import { usePlaylistsQuery } from "@/react-app/lib/queries";
@@ -15,16 +15,8 @@ export const Route = createFileRoute("/playlists/$playlistId")({
 
 function PlaylistRoute() {
   const { playlistId } = Route.useParams();
-  const {
-    data: playlistsResponse,
-    isLoading: playlistsLoading,
-    isError: playlistsError,
-  } = usePlaylistsQuery();
-  const playlists = playlistsResponse?.playlists ?? EMPTY_PLAYLISTS;
-  const resolvedPlaylist = useMemo(
-    () => resolvePlaylist(playlistId, playlists),
-    [playlistId, playlists],
-  );
+  const { data } = usePlaylistsQuery();
+  const resolvedPlaylist = resolvePlaylist(playlistId, data?.playlists ?? EMPTY_PLAYLISTS);
   const playlistKey = getPlaylistKey(resolvedPlaylist);
   const activePlaylist = usePlaybackStore((state) => state.activePlaylist);
   const setActivePlaylist = usePlaybackStore((state) => state.setActivePlaylist);
@@ -39,13 +31,5 @@ function PlaylistRoute() {
     setActivePlaylist(resolvedPlaylist);
   }, [activePlaylist, playlistKey, resolvedPlaylist, setActivePlaylist]);
 
-  return (
-    <PlaylistSongsView
-      key={playlistKey}
-      playlist={resolvedPlaylist}
-      playlists={playlists}
-      playlistsLoading={playlistsLoading}
-      playlistsError={playlistsError}
-    />
-  );
+  return <PlaylistSongsView key={playlistKey} playlist={resolvedPlaylist} />;
 }

@@ -154,15 +154,14 @@ export function AppSidebar() {
       } catch (error) {
         failed += 1;
         console.error("[UPLOAD] Failed to upload file:", error);
-      } finally {
-        completed += 1;
-        setFolderUploadProgress({
-          total,
-          completed,
-          failed,
-          inProgress: completed < total,
-        });
       }
+      completed += 1;
+      setFolderUploadProgress({
+        total,
+        completed,
+        failed,
+        inProgress: completed < total,
+      });
     }
 
     await invalidateSongsQuery(queryClient);

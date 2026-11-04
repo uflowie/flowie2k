@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, MoreVertical, Search } from "lucide-react";
 
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -20,6 +20,7 @@ import {
   flexRender,
   metaHelper,
   tableFeatures,
+  type Cell,
   type ColumnDef,
   type Row,
   useTable,
@@ -33,6 +34,7 @@ import {
 import {
   useAddTrackToPlaylistMutation,
   useDeleteSongMutation,
+  usePlaylistsQuery,
   useRemoveTrackFromPlaylistMutation,
   useSongsQuery,
 } from "@/react-app/lib/queries";
@@ -40,7 +42,7 @@ import { usePlaybackStore } from "@/react-app/lib/playback-store";
 import { getSongTitle } from "@/react-app/lib/songs";
 import { SongCover } from "@/react-app/components/song-cover";
 import { jsonSetting, useLocalStorage } from "@/react-app/lib/local-storage";
-import type { PlaylistSummary, PlaylistSong } from "@/react-app/lib/types";
+import type { PlaylistSong } from "@/react-app/lib/types";
 
 const formatDuration = (seconds?: number | null) => {
   if (!seconds || seconds <= 0) {
@@ -216,25 +218,21 @@ const applyTableSort = (items: PlaylistSong[], sort: TableSort, playlist: Active
   });
 };
 
-type PlaylistSongsViewProps = {
-  playlist: ActivePlaylist;
-  playlists: PlaylistSummary[];
-  playlistsLoading: boolean;
-  playlistsError: boolean;
-};
-
 type SongRowProps = {
-  row: Row<typeof playlistTableFeatures, PlaylistSong>;
+  song: PlaylistSong;
+  /**
+   * Passed in rather than read from the row: a row outlives column changes, so reading
+   * `row.getAllCells()` here would let React Compiler keep showing the old columns.
+   */
+  cells: Cell<typeof playlistTableFeatures, PlaylistSong>[];
   index: number;
   /** Lets the virtualizer measure the real height, which grows with the font size. */
   measureRef: (element: HTMLTableRowElement | null) => void;
   onSelect: (song: PlaylistSong) => void;
 };
 
-function SongRow({ row, index, measureRef, onSelect }: SongRowProps) {
-  const isSelected = usePlaybackStore(
-    useCallback((state) => state.currentSongId === row.original.id, [row.original.id]),
-  );
+function SongRow({ song, cells, index, measureRef, onSelect }: SongRowProps) {
+  const isSelected = usePlaybackStore((state) => state.currentSongId === song.id);
 
   return (
     <TableRow
@@ -242,9 +240,9 @@ function SongRow({ row, index, measureRef, onSelect }: SongRowProps) {
       data-index={index}
       data-state={isSelected ? "selected" : undefined}
       className="group/row h-12 cursor-pointer select-none focus-visible:outline-none md:h-8"
-      onClick={() => onSelect(row.original)}
+      onClick={() => onSelect(song)}
     >
-      {row.getAllCells().map((cell, cellIndex) => {
+      {cells.map((cell, cellIndex) => {
         const meta = cell.column.columnDef.meta;
         return (
           <TableCell
@@ -262,53 +260,10 @@ function SongRow({ row, index, measureRef, onSelect }: SongRowProps) {
 type SongActionsMenuProps = {
   trackId: number;
   activePlaylist: ActivePlaylist;
-  playlists: PlaylistSummary[];
-  playlistsLoading: boolean;
-  playlistsError: boolean;
-  onAddToPlaylist: (playlistId: number, trackId: number) => void;
-  onRemoveFromPlaylist: (playlistId: number, trackId: number) => void;
-  onDeleteSong: (trackId: number) => void;
 };
 
-function SongActionsMenu({
-  trackId,
-  activePlaylist,
-  playlists,
-  playlistsLoading,
-  playlistsError,
-  onAddToPlaylist,
-  onRemoveFromPlaylist,
-  onDeleteSong,
-}: SongActionsMenuProps) {
+function SongActionsMenu({ trackId, activePlaylist }: SongActionsMenuProps) {
   const [open, setOpen] = useState(false);
-  const isCustomPlaylist = activePlaylist.type === "custom";
-  const handleAdd = useCallback(
-    (playlistId: number) => {
-      onAddToPlaylist(playlistId, trackId);
-      setOpen(false);
-    },
-    [onAddToPlaylist, trackId],
-  );
-  const handleRemove = useCallback(() => {
-    if (activePlaylist.type !== "custom") {
-      return;
-    }
-    onRemoveFromPlaylist(activePlaylist.id, trackId);
-    setOpen(false);
-  }, [activePlaylist, onRemoveFromPlaylist, trackId]);
-  const handleDelete = useCallback(() => {
-    const confirmed = window.confirm("Delete this song? This removes it from all playlists.");
-    if (!confirmed) {
-      return;
-    }
-    onDeleteSong(trackId);
-    setOpen(false);
-  }, [onDeleteSong, trackId]);
-  const playlistStatusMessage = getPlaylistStatusMessage({
-    playlists,
-    isLoading: playlistsLoading,
-    isError: playlistsError,
-  });
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -335,62 +290,85 @@ function SongActionsMenu({
           onClick={(event) => event.stopPropagation()}
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <div className="flex flex-col">
-            {playlistStatusMessage ? (
-              <div className="text-muted-foreground px-2 py-1.5 text-xs">
-                {playlistStatusMessage}
-              </div>
-            ) : (
-              playlists.map((playlist) => (
-                <Button
-                  key={playlist.id}
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  role="menuitem"
-                  className="w-full justify-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleAdd(playlist.id);
-                  }}
-                >
-                  Add to {playlist.name}
-                </Button>
-              ))
-            )}
-            <div className="my-1 h-px bg-border" role="separator" />
-            {isCustomPlaylist ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                role="menuitem"
-                className="w-full justify-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleRemove();
-                }}
-              >
-                Remove from {activePlaylist.name}
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              role="menuitem"
-              className="text-destructive hover:text-destructive w-full justify-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-destructive/10"
-              onClick={(event) => {
-                event.stopPropagation();
-                handleDelete();
-              }}
-            >
-              Delete song
-            </Button>
-          </div>
+          <SongActions
+            trackId={trackId}
+            activePlaylist={activePlaylist}
+            onDone={() => setOpen(false)}
+          />
         </PopoverContent>
       ) : null}
     </Popover>
+  );
+}
+
+/** Only mounted while a menu is open, so rows don't each subscribe to playlists and mutations. */
+function SongActions({
+  trackId,
+  activePlaylist,
+  onDone,
+}: SongActionsMenuProps & { onDone: () => void }) {
+  const { data, isLoading, isError } = usePlaylistsQuery();
+  const playlists = data?.playlists ?? [];
+  const { mutate: addToPlaylist } = useAddTrackToPlaylistMutation();
+  const { mutate: removeFromPlaylist } = useRemoveTrackFromPlaylistMutation();
+  const { mutate: deleteSong } = useDeleteSongMutation();
+  const playlistStatusMessage = getPlaylistStatusMessage({ playlists, isLoading, isError });
+
+  return (
+    <div className="flex flex-col">
+      {playlistStatusMessage ? (
+        <div className="text-muted-foreground px-2 py-1.5 text-xs">{playlistStatusMessage}</div>
+      ) : (
+        playlists.map((playlist) => (
+          <Button
+            key={playlist.id}
+            type="button"
+            variant="ghost"
+            size="sm"
+            role="menuitem"
+            className="w-full justify-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
+            onClick={() => {
+              addToPlaylist({ playlistId: playlist.id, trackId });
+              onDone();
+            }}
+          >
+            Add to {playlist.name}
+          </Button>
+        ))
+      )}
+      <div className="my-1 h-px bg-border" role="separator" />
+      {activePlaylist.type === "custom" ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          role="menuitem"
+          className="w-full justify-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent hover:text-accent-foreground"
+          onClick={() => {
+            removeFromPlaylist({ playlistId: activePlaylist.id, trackId });
+            onDone();
+          }}
+        >
+          Remove from {activePlaylist.name}
+        </Button>
+      ) : null}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        role="menuitem"
+        className="text-destructive hover:text-destructive w-full justify-start rounded-sm px-2 py-1.5 text-left text-xs hover:bg-destructive/10"
+        onClick={() => {
+          if (!window.confirm("Delete this song? This removes it from all playlists.")) {
+            return;
+          }
+          deleteSong(trackId);
+          onDone();
+        }}
+      >
+        Delete song
+      </Button>
+    </div>
   );
 }
 
@@ -447,50 +425,72 @@ function MobileSortControl({ sort, timeListenedLabel, onSort }: MobileSortContro
   );
 }
 
-export function PlaylistSongsView({
-  playlist,
-  playlists,
-  playlistsLoading,
-  playlistsError,
-}: PlaylistSongsViewProps) {
+type SongRowsProps = {
+  rows: Row<typeof playlistTableFeatures, PlaylistSong>[];
+  scrollElement: HTMLDivElement;
+  columnCount: number;
+  onSelect: (song: PlaylistSong) => void;
+};
+
+/** Renders only the rows on screen, with spacer rows standing in for the rest. */
+function VirtualSongRows({ rows, scrollElement, columnCount, onSelect }: SongRowsProps) {
+  // React Compiler can't safely memoize useVirtualizer, so it's kept to this small component.
+  "use no memo";
+  const rowVirtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollElement,
+    // h-8 row + 1px border at the default font size; rows are measured once rendered.
+    estimateSize: () => 33,
+    overscan: 30,
+  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
+  const paddingTop = virtualRows[0]?.start ?? 0;
+  const paddingBottom = rowVirtualizer.getTotalSize() - (virtualRows.at(-1)?.end ?? 0);
+  const spacer = (height: number) =>
+    height > 0 ? (
+      <TableRow className="border-0 hover:bg-transparent">
+        <TableCell colSpan={columnCount} className="p-0" style={{ height }} />
+      </TableRow>
+    ) : null;
+
+  return (
+    <>
+      {spacer(paddingTop)}
+      {virtualRows.map((virtualRow) => {
+        const row = rows[virtualRow.index];
+        return row ? (
+          <SongRow
+            key={row.id}
+            song={row.original}
+            cells={row.getAllCells()}
+            index={virtualRow.index}
+            measureRef={rowVirtualizer.measureElement}
+            onSelect={onSelect}
+          />
+        ) : null;
+      })}
+      {spacer(paddingBottom)}
+    </>
+  );
+}
+
+const NO_SONGS: PlaylistSong[] = [];
+
+export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: ActivePlaylist }) {
   const startPlayback = usePlaybackStore((state) => state.startPlayback);
   const restartCurrentSong = usePlaybackStore((state) => state.restartCurrentSong);
   const setActivePlaylistSongIds = usePlaybackStore((state) => state.setActivePlaylistSongIds);
-  const activePlaylist = playlist;
   const playlistKey = getPlaylistKey(activePlaylist);
   const [searchQuery, setSearchQuery] = useState("");
   const [tableSorts, setTableSorts] = useLocalStorage(tableSortsSetting);
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
-  const setTableContainerRef = useCallback((element: HTMLDivElement | null) => {
-    setScrollElement(element);
-  }, []);
   const tableSort = tableSorts[playlistKey] ?? null;
 
-  const { data: songs = [], isLoading, isError, error, refetch } = useSongsQuery(activePlaylist);
-  const addToPlaylistMutation = useAddTrackToPlaylistMutation();
-  const removeFromPlaylistMutation = useRemoveTrackFromPlaylistMutation();
-  const deleteSongMutation = useDeleteSongMutation();
+  const { data, isLoading, isError, error, refetch } = useSongsQuery(activePlaylist);
+  const songs = data ?? NO_SONGS;
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const hasSearch = normalizedSearch.length > 0;
-  const handleAddToPlaylist = useCallback(
-    (playlistId: number, trackId: number) => {
-      addToPlaylistMutation.mutate({ playlistId, trackId });
-    },
-    [addToPlaylistMutation],
-  );
-  const handleRemoveFromPlaylist = useCallback(
-    (playlistId: number, trackId: number) => {
-      removeFromPlaylistMutation.mutate({ playlistId, trackId });
-    },
-    [removeFromPlaylistMutation],
-  );
-  const handleDeleteSong = useCallback(
-    (trackId: number) => {
-      deleteSongMutation.mutate(trackId);
-    },
-    [deleteSongMutation],
-  );
 
   const handleSort = (key: SortKey) => {
     const current = tableSorts[playlistKey];
@@ -505,26 +505,16 @@ export function PlaylistSongsView({
     setTableSorts({ ...tableSorts, [playlistKey]: nextSort });
   };
 
-  const activeSortedSongs = useMemo(() => {
-    if (!tableSort) {
-      return songs;
-    }
-    return applyTableSort(songs, tableSort, activePlaylist);
-  }, [songs, tableSort, activePlaylist]);
+  const activeSortedSongs = tableSort ? applyTableSort(songs, tableSort, activePlaylist) : songs;
+  const activeSortedIds = activeSortedSongs.map((song) => song.id);
 
-  const visibleSongs = useMemo(() => {
-    if (!normalizedSearch) {
-      return activeSortedSongs;
-    }
-
-    const matches = (value?: string | null) =>
-      Boolean(value && value.toLowerCase().includes(normalizedSearch));
-
-    return activeSortedSongs.filter((song) => {
-      const title = getSongTitle(song);
-      return matches(title) || matches(song.artist ?? null) || matches(song.album ?? null);
-    });
-  }, [activeSortedSongs, normalizedSearch]);
+  const matches = (value?: string | null) =>
+    Boolean(value?.toLowerCase().includes(normalizedSearch));
+  const visibleSongs = normalizedSearch
+    ? activeSortedSongs.filter(
+        (song) => matches(getSongTitle(song)) || matches(song.artist) || matches(song.album),
+      )
+    : activeSortedSongs;
 
   const timeListenedLabel =
     activePlaylist.type === "smart" && activePlaylist.days
@@ -532,142 +522,119 @@ export function PlaylistSongsView({
       : "Time listened";
 
   const isMobile = useIsMobile();
-  const columns = useMemo<ColumnDef<typeof playlistTableFeatures, PlaylistSong>[]>(() => {
-    const allColumns: ColumnDef<typeof playlistTableFeatures, PlaylistSong>[] = [
-      {
-        id: "title",
-        header: "Title",
-        meta: {
-          sortKey: "title",
-          // No width: the title takes whatever space the other columns leave.
-          headerClassName: "",
-          cellClassName: "font-medium truncate",
-        } satisfies SongsColumnMeta,
-        cell: ({ row }) => (
-          <div className="flex min-w-0 items-center gap-2.5">
-            {/* No covers on phones: they're full-size images, and iOS flickers decoding them while scrolling. */}
-            {isMobile ? null : <SongCover song={row.original} className="size-6" />}
-            <div className="flex min-w-0 flex-col">
-              <span className="truncate">{getSongTitle(row.original)}</span>
-              {/* Phones have no artist column, so the artist goes under the title. */}
-              {row.original.artist ? (
-                <span className="truncate text-xs font-normal text-muted-foreground md:hidden">
-                  {row.original.artist}
-                </span>
-              ) : null}
-            </div>
+  const allColumns: ColumnDef<typeof playlistTableFeatures, PlaylistSong>[] = [
+    {
+      id: "title",
+      header: "Title",
+      meta: {
+        sortKey: "title",
+        // No width: the title takes whatever space the other columns leave.
+        headerClassName: "",
+        cellClassName: "font-medium truncate",
+      } satisfies SongsColumnMeta,
+      cell: ({ row }) => (
+        <div className="flex min-w-0 items-center gap-2.5">
+          {/* No covers on phones: they're full-size images, and iOS flickers decoding them while scrolling. */}
+          {isMobile ? null : <SongCover song={row.original} className="size-6" />}
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate">{getSongTitle(row.original)}</span>
+            {/* Phones have no artist column, so the artist goes under the title. */}
+            {row.original.artist ? (
+              <span className="truncate text-xs font-normal text-muted-foreground md:hidden">
+                {row.original.artist}
+              </span>
+            ) : null}
           </div>
+        </div>
+      ),
+    },
+    {
+      id: "artist",
+      header: "Artist",
+      meta: {
+        sortKey: "artist",
+        hideOnMobile: true,
+        headerClassName: "w-[160px]",
+        cellClassName: "truncate text-muted-foreground",
+      } satisfies SongsColumnMeta,
+      cell: ({ row }) => row.original.artist ?? "",
+    },
+    {
+      id: "album",
+      header: "Album",
+      meta: {
+        sortKey: "album",
+        hideOnMobile: true,
+        headerClassName: "w-[160px]",
+        cellClassName: "truncate text-muted-foreground",
+      } satisfies SongsColumnMeta,
+      cell: ({ row }) => row.original.album ?? "",
+    },
+    {
+      id: "duration",
+      header: "Duration",
+      meta: {
+        sortKey: "duration",
+        hideOnMobile: true,
+        headerClassName: "w-[calc(90px*var(--font-scale))]",
+        cellClassName: "pr-6 text-right text-muted-foreground",
+        numeric: true,
+      } satisfies SongsColumnMeta,
+      cell: ({ row }) => formatDuration(row.original.duration),
+    },
+    {
+      id: "time",
+      header: timeListenedLabel,
+      meta: {
+        sortKey: "time",
+        headerClassName: "w-[calc(84px*var(--font-scale))] md:w-[calc(120px*var(--font-scale))]",
+        cellClassName: "pr-3 text-right text-muted-foreground md:pr-6",
+        numeric: true,
+      } satisfies SongsColumnMeta,
+      cell: ({ row }) =>
+        formatListeningTime(getListeningSecondsForPlaylist(row.original, activePlaylist)),
+    },
+    {
+      id: "lastPlayed",
+      header: "Last played",
+      meta: {
+        sortKey: "lastPlayed",
+        hideOnMobile: true,
+        headerClassName: "w-[calc(120px*var(--font-scale))]",
+        cellClassName: "text-muted-foreground",
+      } satisfies SongsColumnMeta,
+      cell: ({ row }) =>
+        formatDate(
+          "last_played" in row.original ? (row.original.last_played as string | null) : null,
         ),
-      },
-      {
-        id: "artist",
-        header: "Artist",
-        meta: {
-          sortKey: "artist",
-          hideOnMobile: true,
-          headerClassName: "w-[160px]",
-          cellClassName: "truncate text-muted-foreground",
-        } satisfies SongsColumnMeta,
-        cell: ({ row }) => row.original.artist ?? "",
-      },
-      {
-        id: "album",
-        header: "Album",
-        meta: {
-          sortKey: "album",
-          hideOnMobile: true,
-          headerClassName: "w-[160px]",
-          cellClassName: "truncate text-muted-foreground",
-        } satisfies SongsColumnMeta,
-        cell: ({ row }) => row.original.album ?? "",
-      },
-      {
-        id: "duration",
-        header: "Duration",
-        meta: {
-          sortKey: "duration",
-          hideOnMobile: true,
-          headerClassName: "w-[calc(90px*var(--font-scale))]",
-          cellClassName: "pr-6 text-right text-muted-foreground",
-          numeric: true,
-        } satisfies SongsColumnMeta,
-        cell: ({ row }) => formatDuration(row.original.duration),
-      },
-      {
-        id: "time",
-        header: timeListenedLabel,
-        meta: {
-          sortKey: "time",
-          headerClassName: "w-[calc(84px*var(--font-scale))] md:w-[calc(120px*var(--font-scale))]",
-          cellClassName: "pr-3 text-right text-muted-foreground md:pr-6",
-          numeric: true,
-        } satisfies SongsColumnMeta,
-        cell: ({ row }) =>
-          formatListeningTime(getListeningSecondsForPlaylist(row.original, activePlaylist)),
-      },
-      {
-        id: "lastPlayed",
-        header: "Last played",
-        meta: {
-          sortKey: "lastPlayed",
-          hideOnMobile: true,
-          headerClassName: "w-[calc(120px*var(--font-scale))]",
-          cellClassName: "text-muted-foreground",
-        } satisfies SongsColumnMeta,
-        cell: ({ row }) =>
-          formatDate(
-            "last_played" in row.original ? (row.original.last_played as string | null) : null,
-          ),
-      },
-      {
-        id: "dateAdded",
-        header: "Date added",
-        meta: {
-          sortKey: "dateAdded",
-          hideOnMobile: true,
-          headerClassName: "w-[calc(120px*var(--font-scale))]",
-          cellClassName: "text-muted-foreground",
-        } satisfies SongsColumnMeta,
-        cell: ({ row }) => formatDate(row.original.uploaded_at),
-      },
-      {
-        id: "actions",
-        header: "",
-        meta: {
-          headerClassName: "w-12 text-right",
-          // With a mouse, only shown on hover or while its menu is open; always shown on touch.
-          cellClassName:
-            "text-right transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:focus-within:opacity-100 pointer-fine:has-[[aria-expanded=true]]:opacity-100",
-        } satisfies SongsColumnMeta,
-        cell: ({ row }) => {
-          return (
-            <SongActionsMenu
-              trackId={row.original.id}
-              activePlaylist={activePlaylist}
-              playlists={playlists}
-              playlistsLoading={playlistsLoading}
-              playlistsError={playlistsError}
-              onAddToPlaylist={handleAddToPlaylist}
-              onRemoveFromPlaylist={handleRemoveFromPlaylist}
-              onDeleteSong={handleDeleteSong}
-            />
-          );
-        },
-      },
-    ];
-    // Left out rather than hidden with CSS: a fixed-layout table keeps hidden columns' widths.
-    return isMobile ? allColumns.filter((column) => !column.meta?.hideOnMobile) : allColumns;
-  }, [
-    isMobile,
-    activePlaylist,
-    timeListenedLabel,
-    playlistsLoading,
-    playlistsError,
-    playlists,
-    handleAddToPlaylist,
-    handleRemoveFromPlaylist,
-    handleDeleteSong,
-  ]);
+    },
+    {
+      id: "dateAdded",
+      header: "Date added",
+      meta: {
+        sortKey: "dateAdded",
+        hideOnMobile: true,
+        headerClassName: "w-[calc(120px*var(--font-scale))]",
+        cellClassName: "text-muted-foreground",
+      } satisfies SongsColumnMeta,
+      cell: ({ row }) => formatDate(row.original.uploaded_at),
+    },
+    {
+      id: "actions",
+      header: "",
+      meta: {
+        headerClassName: "w-12 text-right",
+        // With a mouse, only shown on hover or while its menu is open; always shown on touch.
+        cellClassName:
+          "text-right transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:focus-within:opacity-100 pointer-fine:has-[[aria-expanded=true]]:opacity-100",
+      } satisfies SongsColumnMeta,
+      cell: ({ row }) => (
+        <SongActionsMenu trackId={row.original.id} activePlaylist={activePlaylist} />
+      ),
+    },
+  ];
+  // Left out rather than hidden with CSS: a fixed-layout table keeps hidden columns' widths.
+  const columns = isMobile ? allColumns.filter((column) => !column.meta?.hideOnMobile) : allColumns;
 
   const table = useTable({
     features: playlistTableFeatures,
@@ -676,48 +643,17 @@ export function PlaylistSongsView({
     getRowId: (row) => String(row.id),
   });
 
-  const rows = table.getRowModel().rows;
-  const getRowKey = useCallback((index: number) => rows[index]?.id ?? index, [rows]);
-  const rowVirtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => scrollElement,
-    // h-8 row + 1px border at the default font size; rows are measured once rendered.
-    estimateSize: () => 33,
-    overscan: 30,
-    getItemKey: getRowKey,
-    enabled: Boolean(scrollElement),
-  });
-  const virtualRows = scrollElement ? rowVirtualizer.getVirtualItems() : [];
-  const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
-  const paddingBottom =
-    virtualRows.length > 0
-      ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end
-      : 0;
-  const activeSortedIds = useMemo(
-    () => activeSortedSongs.map((song) => song.id),
-    [activeSortedSongs],
-  );
-
   useEffect(() => {
     setActivePlaylistSongIds(activeSortedIds);
   }, [activeSortedIds, setActivePlaylistSongIds]);
 
-  const handleSelectSong = useCallback(
-    (song: PlaylistSong) => {
-      const { currentSongId } = usePlaybackStore.getState();
-      if (currentSongId === song.id) {
-        restartCurrentSong();
-        return;
-      }
-
-      startPlayback({
-        playlist: activePlaylist,
-        songIds: activeSortedIds,
-        songId: song.id,
-      });
-    },
-    [activePlaylist, activeSortedIds, restartCurrentSong, startPlayback],
-  );
+  const handleSelectSong = (song: PlaylistSong) => {
+    if (usePlaybackStore.getState().currentSongId === song.id) {
+      restartCurrentSong();
+      return;
+    }
+    startPlayback({ playlist: activePlaylist, songIds: activeSortedIds, songId: song.id });
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -781,7 +717,7 @@ export function PlaylistSongsView({
           </div>
         ) : (
           <div className="[overflow-anchor:none] flex min-h-0 flex-1 flex-col bg-background/65">
-            <div ref={setTableContainerRef} className="relative flex-1 overflow-auto">
+            <div ref={setScrollElement} className="relative flex-1 overflow-auto">
               <Table className="table-fixed" containerClassName="overflow-visible">
                 <TableHeader className="sticky top-0 z-10 bg-background/95">
                   {table.getHeaderGroups().map((headerGroup) => (
@@ -846,38 +782,13 @@ export function PlaylistSongsView({
                   ))}
                 </TableHeader>
                 <TableBody className="relative">
-                  {paddingTop > 0 ? (
-                    <TableRow className="border-0 hover:bg-transparent">
-                      <TableCell
-                        colSpan={columns.length}
-                        className="p-0"
-                        style={{ height: `${paddingTop}px` }}
-                      />
-                    </TableRow>
-                  ) : null}
-                  {virtualRows.map((virtualRow) => {
-                    const row = rows[virtualRow.index];
-                    if (!row) {
-                      return null;
-                    }
-                    return (
-                      <SongRow
-                        key={row.id}
-                        row={row}
-                        index={virtualRow.index}
-                        measureRef={rowVirtualizer.measureElement}
-                        onSelect={handleSelectSong}
-                      />
-                    );
-                  })}
-                  {paddingBottom > 0 ? (
-                    <TableRow className="border-0 hover:bg-transparent">
-                      <TableCell
-                        colSpan={columns.length}
-                        className="p-0"
-                        style={{ height: `${paddingBottom}px` }}
-                      />
-                    </TableRow>
+                  {scrollElement ? (
+                    <VirtualSongRows
+                      rows={table.getRowModel().rows}
+                      scrollElement={scrollElement}
+                      columnCount={columns.length}
+                      onSelect={handleSelectSong}
+                    />
                   ) : null}
                 </TableBody>
               </Table>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Gauge,
   Music,
@@ -115,11 +115,9 @@ export function PlaybackControls() {
 
   const { data: playbackSongs = [] } = useSongsQuery(playbackPlaylist);
 
-  const currentSong = useMemo(
-    () =>
-      currentSongId ? (playbackSongs.find((song) => song.id === currentSongId) ?? null) : null,
-    [playbackSongs, currentSongId],
-  );
+  const currentSong = currentSongId
+    ? (playbackSongs.find((song) => song.id === currentSongId) ?? null)
+    : null;
   const currentSongLabel = currentSong
     ? getSongTitle(currentSong)
     : currentSongId
@@ -137,12 +135,6 @@ export function PlaybackControls() {
   const [isSeeking, setIsSeeking] = useState(false);
   const displayCurrentTime = currentSongId ? currentTime : 0;
   const displayDuration = currentSongId ? duration : 0;
-  const playbackRateValue = useMemo(() => [playbackRate], [playbackRate]);
-  const volumeValue = useMemo(() => [volume], [volume]);
-  const seekValue = useMemo(
-    () => [Math.min(displayCurrentTime, displayDuration || 0)],
-    [displayCurrentTime, displayDuration],
-  );
   const canPlay = Boolean(currentSongId || activePlaylistSongIds.length);
   const storageKey = currentSong?.storage_key;
   const fileSize = currentSong?.file_size;
@@ -284,27 +276,16 @@ export function PlaybackControls() {
     updateMediaSessionPosition(audio);
   }, [playbackRate]);
 
-  const handleTogglePlay = useCallback(() => {
-    if (isPlaying) {
-      pause();
-    } else {
-      play();
+  const handleSeek = (value: number) => {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(value)) {
+      return;
     }
-  }, [isPlaying, pause, play]);
-
-  const handleSeek = useCallback(
-    (value: number) => {
-      const audio = audioRef.current;
-      if (!audio || !Number.isFinite(value)) {
-        return;
-      }
-      const nextTime = clamp(value, 0, duration || audio.duration || 0);
-      audio.currentTime = nextTime;
-      setCurrentTime(nextTime);
-      updateMediaSessionPosition(audio);
-    },
-    [duration],
-  );
+    const nextTime = clamp(value, 0, duration || audio.duration || 0);
+    audio.currentTime = nextTime;
+    setCurrentTime(nextTime);
+    updateMediaSessionPosition(audio);
+  };
 
   useEffect(() => {
     if (!("mediaSession" in navigator)) {
@@ -355,37 +336,6 @@ export function PlaybackControls() {
       }
     };
   }, [handleSeek, next, pause, play, previous]);
-
-  const handleEnded = useCallback(() => {
-    if (repeat && audioRef.current) {
-      usePlaybackStore.getState().restartCurrentSong();
-      return;
-    }
-
-    next();
-  }, [next, repeat]);
-  const handlePlaybackRateChange = useCallback(
-    (value: number[]) => {
-      const nextValue = value[0];
-      if (typeof nextValue !== "number") {
-        return;
-      }
-
-      setPlaybackRate(clamp(nextValue, 0.5, 1.5));
-    },
-    [setPlaybackRate],
-  );
-  const handleVolumeChange = useCallback(
-    (value: number[]) => {
-      const nextValue = value[0];
-      if (typeof nextValue !== "number") {
-        return;
-      }
-
-      setVolume(clamp(nextValue, 0, 1));
-    },
-    [setVolume],
-  );
 
   return (
     <div className="border-t bg-background px-3 py-2">
@@ -438,7 +388,7 @@ export function PlaybackControls() {
               type="button"
               variant="ghost"
               size="icon"
-              onClick={handleTogglePlay}
+              onClick={isPlaying ? pause : play}
               disabled={!canPlay}
               aria-label={isPlaying ? "Pause" : "Play"}
               className="size-12 text-foreground [&_svg]:size-7"
@@ -474,7 +424,7 @@ export function PlaybackControls() {
               min={0}
               max={displayDuration || 0}
               step={0.25}
-              value={seekValue}
+              value={[Math.min(displayCurrentTime, displayDuration)]}
               onPointerDown={() => setIsSeeking(true)}
               onPointerUp={() => setIsSeeking(false)}
               onPointerCancel={() => setIsSeeking(false)}
@@ -511,8 +461,8 @@ export function PlaybackControls() {
               min={0.5}
               max={1.5}
               step={0.01}
-              value={playbackRateValue}
-              onValueChange={handlePlaybackRateChange}
+              value={[playbackRate]}
+              onValueChange={([value]) => setPlaybackRate(clamp(value, 0.5, 1.5))}
               className="-my-2 w-full py-2 md:my-0 md:w-20 md:py-0"
               aria-label="Playback speed"
             />
@@ -525,8 +475,8 @@ export function PlaybackControls() {
               min={0}
               max={1}
               step={0.01}
-              value={volumeValue}
-              onValueChange={handleVolumeChange}
+              value={[volume]}
+              onValueChange={([value]) => setVolume(clamp(value, 0, 1))}
               className="w-20"
               aria-label="Volume"
             />
@@ -550,7 +500,7 @@ export function PlaybackControls() {
           setDuration(Number.isFinite(nextDuration) ? nextDuration : 0);
           updateMediaSessionPosition(event.currentTarget);
         }}
-        onEnded={handleEnded}
+        onEnded={() => (repeat ? usePlaybackStore.getState().restartCurrentSong() : next())}
         onError={() => {
           if (sourceReadyRef.current) setIsPlaying(false);
         }}
