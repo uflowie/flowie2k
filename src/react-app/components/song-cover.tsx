@@ -17,7 +17,7 @@ type SongCoverProps = {
   className?: string;
 };
 
-/** Album art, or a generated gradient tile with the title's initial when there is none. */
+/** Album art, or a muted tile with the title's initial when there is none. */
 export function SongCover({ song, className }: SongCoverProps) {
   const [failed, setFailed] = useState(false);
   const title = getSongTitle(song);
@@ -27,14 +27,14 @@ export function SongCover({ song, className }: SongCoverProps) {
   return (
     <div
       className={cn(
-        "relative grid shrink-0 place-items-center overflow-hidden rounded-[3px] [container-type:size]",
+        "relative grid shrink-0 place-items-center overflow-hidden rounded-[3px] @container-size",
         className,
       )}
       style={
         showImage
           ? undefined
           : {
-              background: `linear-gradient(135deg, oklch(0.55 0.11 ${hue}), oklch(0.3 0.07 ${(hue + 50) % 360}))`,
+              background: `oklch(0.36 0.05 ${hue})`,
             }
       }
     >
@@ -48,7 +48,7 @@ export function SongCover({ song, className }: SongCoverProps) {
           onError={() => setFailed(true)}
         />
       ) : (
-        <span className="text-[50cqh] leading-none font-bold text-white/85">
+        <span className="text-[50cqh] leading-none font-bold text-white/60">
           {/\p{L}|\p{N}/u.exec(title)?.[0]?.toUpperCase() ?? "♪"}
         </span>
       )}
