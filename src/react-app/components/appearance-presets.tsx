@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Save, Trash2 } from "lucide-react";
+import { ClipboardPaste, Copy, Save, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,7 @@ import { SidebarMenuItem } from "@/components/ui/sidebar";
 import {
   appearancePresetsSetting,
   matchesAppearance,
+  parseAppearancePreset,
   pickPresetValues,
   type AppearancePreset,
   type AppearancePresetValues,
@@ -52,6 +54,38 @@ export function AppearancePresets({ appearance, onApply }: AppearancePresetsProp
       const { name: _name, ...values } = selectedPreset;
       onApply(values);
     }
+  };
+
+  // Copies the current look, named after the selected preset (if any), as JSON.
+  const handleCopy = async () => {
+    const preset: AppearancePreset = {
+      name: selectedName || name.trim() || "Shared preset",
+      ...pickPresetValues(appearance),
+    };
+    await navigator.clipboard.writeText(JSON.stringify(preset));
+    toast.success(`Copied "${preset.name}" to the clipboard`);
+  };
+
+  // Saves and applies a preset pasted from the clipboard, replacing one with the same name.
+  const handlePaste = async () => {
+    let preset: AppearancePreset | null = null;
+    try {
+      preset = parseAppearancePreset(JSON.parse(await navigator.clipboard.readText()));
+    } catch {
+      // Not JSON (or clipboard access denied): handled below.
+    }
+    if (!preset) {
+      toast.error("The clipboard doesn't contain a preset");
+      return;
+    }
+
+    const { name: presetName, ...values } = preset;
+    setPresets([
+      ...presets.filter((existing) => getPresetKey(existing.name) !== getPresetKey(presetName)),
+      preset,
+    ]);
+    onApply(values);
+    toast.success(`Imported "${presetName}"`);
   };
 
   const handleDelete = () => {
@@ -107,6 +141,30 @@ export function AppearancePresets({ appearance, onApply }: AppearancePresetsProp
               <Save className="size-3.5" />
             </Button>
           </div>
+        </div>
+      </SidebarMenuItem>
+      <SidebarMenuItem>
+        <div className="flex gap-1 px-1.5">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void handleCopy()}
+            className="h-7 flex-1 justify-start rounded-sm px-2 text-xs hover:bg-sidebar-accent"
+          >
+            <Copy className="size-3.5" />
+            Copy
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void handlePaste()}
+            className="h-7 flex-1 justify-start rounded-sm px-2 text-xs hover:bg-sidebar-accent"
+          >
+            <ClipboardPaste className="size-3.5" />
+            Paste
+          </Button>
         </div>
       </SidebarMenuItem>
       {selectedName ? (

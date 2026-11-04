@@ -287,7 +287,8 @@ export const matchesAppearance = (preset: AppearancePresetValues, current: Appea
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const normalizeAppearancePreset = (value: unknown): AppearancePreset | null => {
+/** Validates a stored or pasted preset; null when it isn't one. */
+export const parseAppearancePreset = (value: unknown): AppearancePreset | null => {
   if (!isRecord(value) || typeof value.name !== "string") {
     return null;
   }
@@ -326,7 +327,7 @@ export const appearancePresetsSetting = jsonSetting<AppearancePreset[]>(
     if (!isRecord(stored) || stored.version !== APPEARANCE_PRESETS_VERSION) return undefined;
     if (!Array.isArray(stored.presets)) return undefined;
     return stored.presets.flatMap((preset) => {
-      const normalized = normalizeAppearancePreset(preset);
+      const normalized = parseAppearancePreset(preset);
       return normalized ? [normalized] : [];
     });
   },
