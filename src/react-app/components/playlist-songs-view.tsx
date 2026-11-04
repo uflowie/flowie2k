@@ -17,12 +17,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  columnVisibilityFeature,
+  createColumnHelper,
+  createSortedRowModel,
   flexRender,
   metaHelper,
+  rowSortingFeature,
+  sortFn_basic,
   tableFeatures,
   type Cell,
-  type ColumnDef,
+  type ReactTable,
   type Row,
+  type SortingState,
   useTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -82,36 +88,31 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   day: "2-digit",
 });
 
-const formatDate = (value?: string | null) => {
-  if (!value) {
-    return "";
-  }
+const formatDate = (timestamp?: number) =>
+  timestamp === undefined ? "" : dateFormatter.format(timestamp);
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-
-  return dateFormatter.format(date);
+/** Undefined for missing or invalid dates, so they sort like missing values. */
+const toTimestamp = (value?: string | null) => {
+  const timestamp = value ? Date.parse(value) : Number.NaN;
+  return Number.isNaN(timestamp) ? undefined : timestamp;
 };
 
-type SortKey = "title" | "artist" | "album" | "duration" | "time" | "lastPlayed" | "dateAdded";
+const SORT_KEYS = [
+  "title",
+  "artist",
+  "album",
+  "duration",
+  "time",
+  "lastPlayed",
+  "dateAdded",
+] as const;
+type SortKey = (typeof SORT_KEYS)[number];
 
+/** A playlist's sort as stored, which predates TanStack's sorting state. */
 type TableSort = {
   key: SortKey;
   direction: "asc" | "desc";
 };
-
-const DEFAULT_SORT_DIRECTIONS: Record<SortKey, TableSort["direction"]> = {
-  title: "asc",
-  artist: "asc",
-  album: "asc",
-  duration: "desc",
-  time: "desc",
-  lastPlayed: "desc",
-  dateAdded: "desc",
-};
-const SORT_KEYS = new Set<SortKey>(Object.keys(DEFAULT_SORT_DIRECTIONS) as SortKey[]);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -125,11 +126,7 @@ const tableSortsSetting = jsonSetting<Record<string, TableSort>>(
     for (const [playlistKey, storedSort] of Object.entries(stored)) {
       if (!isRecord(storedSort)) continue;
       const { key, direction } = storedSort;
-      if (
-        typeof key === "string" &&
-        SORT_KEYS.has(key as SortKey) &&
-        (direction === "asc" || direction === "desc")
-      ) {
+      if (SORT_KEYS.includes(key as SortKey) && (direction === "asc" || direction === "desc")) {
         sorts[playlistKey] = { key: key as SortKey, direction };
       }
     }
@@ -138,9 +135,6 @@ const tableSortsSetting = jsonSetting<Record<string, TableSort>>(
 );
 
 type SongsColumnMeta = {
-  sortKey?: SortKey;
-  /** Left out on phones, where only the title, time listened and actions fit. */
-  hideOnMobile?: boolean;
   /** Right-aligned, for durations and times. */
   numeric?: boolean;
   headerClassName?: string;
@@ -149,7 +143,29 @@ type SongsColumnMeta = {
 
 const playlistTableFeatures = tableFeatures({
   columnMeta: metaHelper<SongsColumnMeta>(),
+  rowSortingFeature,
+  sortedRowModel: createSortedRowModel(),
+  columnVisibilityFeature,
 });
+const columnHelper = createColumnHelper<typeof playlistTableFeatures, PlaylistSong>();
+type SongTableRow = Row<typeof playlistTableFeatures, PlaylistSong>;
+
+/** Phones only fit the title, time listened and actions. */
+const HIDDEN_ON_MOBILE = {
+  artist: false,
+  album: false,
+  duration: false,
+  lastPlayed: false,
+  dateAdded: false,
+};
+
+// Sorting ignores case and accents; ties are then broken by title, case and accents included.
+const baseCollator = new Intl.Collator(undefined, { sensitivity: "base" });
+const tieBreakCollator = new Intl.Collator();
+const compareText = (first: SongTableRow, second: SongTableRow, columnId: string) =>
+  baseCollator.compare(first.getValue<string>(columnId), second.getValue<string>(columnId));
+const compareTitles = (first: PlaylistSong, second: PlaylistSong) =>
+  tieBreakCollator.compare(getSongTitle(first), getSongTitle(second));
 
 const getListeningSecondsForPlaylist = (song: PlaylistSong, playlist: ActivePlaylist) => {
   if (playlist.type === "smart" && playlist.days) {
@@ -157,65 +173,6 @@ const getListeningSecondsForPlaylist = (song: PlaylistSong, playlist: ActivePlay
   }
 
   return "seconds_listened" in song ? (song.seconds_listened as number | null) : null;
-};
-
-const applyTableSort = (items: PlaylistSong[], sort: TableSort, playlist: ActivePlaylist) => {
-  const toDateValue = (value?: string | null) => {
-    if (!value) {
-      return null;
-    }
-    const time = new Date(value).getTime();
-    return Number.isNaN(time) ? null : time;
-  };
-
-  const getSortValue = (song: PlaylistSong) => {
-    switch (sort.key) {
-      case "title":
-        return getSongTitle(song);
-      case "artist":
-        return song.artist ?? null;
-      case "album":
-        return song.album ?? null;
-      case "duration":
-        return song.duration ?? null;
-      case "time":
-        return getListeningSecondsForPlaylist(song, playlist);
-      case "lastPlayed":
-        return "last_played" in song ? toDateValue(song.last_played as string | null) : null;
-      case "dateAdded":
-        return toDateValue(song.uploaded_at);
-      default:
-        return null;
-    }
-  };
-
-  const compareValues = (first: string | number | null, second: string | number | null) => {
-    if (first === null && second === null) {
-      return 0;
-    }
-    if (first === null) {
-      return 1;
-    }
-    if (second === null) {
-      return -1;
-    }
-    if (typeof first === "string" || typeof second === "string") {
-      return String(first).localeCompare(String(second), undefined, {
-        sensitivity: "base",
-      });
-    }
-    return first - second;
-  };
-
-  const direction = sort.direction === "asc" ? 1 : -1;
-
-  return [...items].sort((first, second) => {
-    const result = compareValues(getSortValue(first), getSortValue(second));
-    if (result !== 0) {
-      return result * direction;
-    }
-    return getSongTitle(first).localeCompare(getSongTitle(second));
-  });
 };
 
 type SongRowProps = {
@@ -372,40 +329,30 @@ function SongActions({
   );
 }
 
-const SORT_LABELS: Record<SortKey, string> = {
-  title: "Title",
-  artist: "Artist",
-  album: "Album",
-  duration: "Duration",
-  time: "Time listened",
-  lastPlayed: "Last played",
-  dateAdded: "Date added",
-};
-
 type MobileSortControlProps = {
-  sort: TableSort | null;
-  timeListenedLabel: string;
-  onSort: (key: SortKey) => void;
+  options: { id: string; label: string }[];
+  sort: SortingState[number] | undefined;
+  onSort: (columnId: string) => void;
 };
 
 /** Phones hide most columns, so their sort options live in a picker instead. */
-function MobileSortControl({ sort, timeListenedLabel, onSort }: MobileSortControlProps) {
-  const DirectionIcon = sort?.direction === "asc" ? ArrowUp : ArrowDown;
+function MobileSortControl({ options, sort, onSort }: MobileSortControlProps) {
+  const DirectionIcon = sort?.desc ? ArrowDown : ArrowUp;
 
   return (
     <div className="flex shrink-0 items-center md:hidden">
       <select
-        value={sort?.key ?? ""}
-        onChange={(event) => onSort(event.target.value as SortKey)}
+        value={sort?.id ?? ""}
+        onChange={(event) => onSort(event.target.value)}
         className="h-9 appearance-none rounded-sm bg-transparent px-2 text-xs text-muted-foreground outline-none"
         aria-label="Sort by"
       >
         <option value="" disabled>
           Sort
         </option>
-        {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
-          <option key={key} value={key}>
-            {key === "time" ? timeListenedLabel : SORT_LABELS[key]}
+        {options.map(({ id, label }) => (
+          <option key={id} value={id}>
+            {label}
           </option>
         ))}
       </select>
@@ -414,8 +361,8 @@ function MobileSortControl({ sort, timeListenedLabel, onSort }: MobileSortContro
           type="button"
           variant="ghost"
           size="icon"
-          onClick={() => onSort(sort.key)}
-          aria-label={sort.direction === "asc" ? "Sorted ascending" : "Sorted descending"}
+          onClick={() => onSort(sort.id)}
+          aria-label={sort.desc ? "Sorted descending" : "Sorted ascending"}
           className="size-9 text-muted-foreground"
         >
           <DirectionIcon className="size-4" />
@@ -426,14 +373,15 @@ function MobileSortControl({ sort, timeListenedLabel, onSort }: MobileSortContro
 }
 
 type SongRowsProps = {
-  rows: Row<typeof playlistTableFeatures, PlaylistSong>[];
+  /** Passed so the rows re-render when the columns change, even if the rows don't. */
+  table: ReactTable<typeof playlistTableFeatures, PlaylistSong>;
+  rows: SongTableRow[];
   scrollElement: HTMLDivElement;
-  columnCount: number;
   onSelect: (song: PlaylistSong) => void;
 };
 
 /** Renders only the rows on screen, with spacer rows standing in for the rest. */
-function VirtualSongRows({ rows, scrollElement, columnCount, onSelect }: SongRowsProps) {
+function VirtualSongRows({ table, rows, scrollElement, onSelect }: SongRowsProps) {
   // React Compiler can't safely memoize useVirtualizer, so it's kept to this small component.
   "use no memo";
   const rowVirtualizer = useVirtualizer({
@@ -449,7 +397,11 @@ function VirtualSongRows({ rows, scrollElement, columnCount, onSelect }: SongRow
   const spacer = (height: number) =>
     height > 0 ? (
       <TableRow className="border-0 hover:bg-transparent">
-        <TableCell colSpan={columnCount} className="p-0" style={{ height }} />
+        <TableCell
+          colSpan={table.getVisibleLeafColumns().length}
+          className="p-0"
+          style={{ height }}
+        />
       </TableRow>
     ) : null;
 
@@ -462,7 +414,7 @@ function VirtualSongRows({ rows, scrollElement, columnCount, onSelect }: SongRow
           <SongRow
             key={row.id}
             song={row.original}
-            cells={row.getAllCells()}
+            cells={row.getVisibleCells()}
             index={virtualRow.index}
             measureRef={rowVirtualizer.measureElement}
             onSelect={onSelect}
@@ -476,45 +428,30 @@ function VirtualSongRows({ rows, scrollElement, columnCount, onSelect }: SongRow
 
 const NO_SONGS: PlaylistSong[] = [];
 
+/** Each playlist's search, kept for the session so switching playlists doesn't lose it. */
+const searches = new Map<string, string>();
+
 export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: ActivePlaylist }) {
   const startPlayback = usePlaybackStore((state) => state.startPlayback);
   const restartCurrentSong = usePlaybackStore((state) => state.restartCurrentSong);
-  const setActivePlaylistSongIds = usePlaybackStore((state) => state.setActivePlaylistSongIds);
+  const setOpenView = usePlaybackStore((state) => state.setOpenView);
   const playlistKey = getPlaylistKey(activePlaylist);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(() => searches.get(playlistKey) ?? "");
   const [tableSorts, setTableSorts] = useLocalStorage(tableSortsSetting);
   const [scrollElement, setScrollElement] = useState<HTMLDivElement | null>(null);
-  const tableSort = tableSorts[playlistKey] ?? null;
+  const tableSort = tableSorts[playlistKey];
+  const sorting: SortingState = tableSort
+    ? [{ id: tableSort.key, desc: tableSort.direction === "desc" }]
+    : [];
 
   const { data, isLoading, isError, error, refetch } = useSongsQuery(activePlaylist);
   const songs = data ?? NO_SONGS;
+  const songsByTitle = [...songs].sort(compareTitles);
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const hasSearch = normalizedSearch.length > 0;
-
-  const handleSort = (key: SortKey) => {
-    const current = tableSorts[playlistKey];
-    const nextSort: TableSort =
-      !current || current.key !== key
-        ? { key, direction: DEFAULT_SORT_DIRECTIONS[key] }
-        : {
-            key,
-            direction: current.direction === "asc" ? "desc" : "asc",
-          };
-
-    setTableSorts({ ...tableSorts, [playlistKey]: nextSort });
-  };
-
-  const activeSortedSongs = tableSort ? applyTableSort(songs, tableSort, activePlaylist) : songs;
-  const activeSortedIds = activeSortedSongs.map((song) => song.id);
-
   const matches = (value?: string | null) =>
     Boolean(value?.toLowerCase().includes(normalizedSearch));
-  const visibleSongs = normalizedSearch
-    ? activeSortedSongs.filter(
-        (song) => matches(getSongTitle(song)) || matches(song.artist) || matches(song.album),
-      )
-    : activeSortedSongs;
 
   const timeListenedLabel =
     activePlaylist.type === "smart" && activePlaylist.days
@@ -522,22 +459,22 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
       : "Time listened";
 
   const isMobile = useIsMobile();
-  const allColumns: ColumnDef<typeof playlistTableFeatures, PlaylistSong>[] = [
-    {
+  const columns = columnHelper.columns([
+    columnHelper.accessor((song) => getSongTitle(song), {
       id: "title",
       header: "Title",
+      sortFn: compareText,
       meta: {
-        sortKey: "title",
         // No width: the title takes whatever space the other columns leave.
         headerClassName: "",
         cellClassName: "font-medium truncate",
-      } satisfies SongsColumnMeta,
-      cell: ({ row }) => (
+      },
+      cell: ({ row, getValue }) => (
         <div className="flex min-w-0 items-center gap-2.5">
           {/* No covers on phones: they're full-size images, and iOS flickers decoding them while scrolling. */}
           {isMobile ? null : <SongCover song={row.original} className="size-6" />}
           <div className="flex min-w-0 flex-col">
-            <span className="truncate">{getSongTitle(row.original)}</span>
+            <span className="truncate">{getValue()}</span>
             {/* Phones have no artist column, so the artist goes under the title. */}
             {row.original.artist ? (
               <span className="truncate text-xs font-normal text-muted-foreground md:hidden">
@@ -547,112 +484,139 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
           </div>
         </div>
       ),
-    },
-    {
+    }),
+    columnHelper.accessor((song) => song.artist ?? undefined, {
       id: "artist",
       header: "Artist",
+      sortFn: compareText,
       meta: {
-        sortKey: "artist",
-        hideOnMobile: true,
         headerClassName: "w-[160px]",
         cellClassName: "truncate text-muted-foreground",
-      } satisfies SongsColumnMeta,
-      cell: ({ row }) => row.original.artist ?? "",
-    },
-    {
+      },
+      cell: ({ getValue }) => getValue() ?? "",
+    }),
+    columnHelper.accessor((song) => song.album ?? undefined, {
       id: "album",
       header: "Album",
+      sortFn: compareText,
       meta: {
-        sortKey: "album",
-        hideOnMobile: true,
         headerClassName: "w-[160px]",
         cellClassName: "truncate text-muted-foreground",
-      } satisfies SongsColumnMeta,
-      cell: ({ row }) => row.original.album ?? "",
-    },
-    {
+      },
+      cell: ({ getValue }) => getValue() ?? "",
+    }),
+    columnHelper.accessor((song) => song.duration ?? undefined, {
       id: "duration",
       header: "Duration",
+      sortDescFirst: true,
       meta: {
-        sortKey: "duration",
-        hideOnMobile: true,
         headerClassName: "w-[calc(90px*var(--font-scale))]",
         cellClassName: "pr-6 text-right text-muted-foreground",
         numeric: true,
-      } satisfies SongsColumnMeta,
-      cell: ({ row }) => formatDuration(row.original.duration),
-    },
-    {
-      id: "time",
-      header: timeListenedLabel,
-      meta: {
-        sortKey: "time",
-        headerClassName: "w-[calc(84px*var(--font-scale))] md:w-[calc(120px*var(--font-scale))]",
-        cellClassName: "pr-3 text-right text-muted-foreground md:pr-6",
-        numeric: true,
-      } satisfies SongsColumnMeta,
-      cell: ({ row }) =>
-        formatListeningTime(getListeningSecondsForPlaylist(row.original, activePlaylist)),
-    },
-    {
-      id: "lastPlayed",
-      header: "Last played",
-      meta: {
-        sortKey: "lastPlayed",
-        hideOnMobile: true,
-        headerClassName: "w-[calc(120px*var(--font-scale))]",
-        cellClassName: "text-muted-foreground",
-      } satisfies SongsColumnMeta,
-      cell: ({ row }) =>
-        formatDate(
-          "last_played" in row.original ? (row.original.last_played as string | null) : null,
-        ),
-    },
-    {
+      },
+      cell: ({ getValue }) => formatDuration(getValue()),
+    }),
+    columnHelper.accessor(
+      (song) => getListeningSecondsForPlaylist(song, activePlaylist) ?? undefined,
+      {
+        id: "time",
+        header: timeListenedLabel,
+        sortDescFirst: true,
+        meta: {
+          headerClassName: "w-[calc(84px*var(--font-scale))] md:w-[calc(120px*var(--font-scale))]",
+          cellClassName: "pr-3 text-right text-muted-foreground md:pr-6",
+          numeric: true,
+        },
+        cell: ({ getValue }) => formatListeningTime(getValue()),
+      },
+    ),
+    columnHelper.accessor(
+      (song) => toTimestamp("last_played" in song ? (song.last_played as string | null) : null),
+      {
+        id: "lastPlayed",
+        header: "Last played",
+        sortDescFirst: true,
+        meta: {
+          headerClassName: "w-[calc(120px*var(--font-scale))]",
+          cellClassName: "text-muted-foreground",
+        },
+        cell: ({ getValue }) => formatDate(getValue()),
+      },
+    ),
+    columnHelper.accessor((song) => toTimestamp(song.uploaded_at), {
       id: "dateAdded",
       header: "Date added",
+      sortDescFirst: true,
       meta: {
-        sortKey: "dateAdded",
-        hideOnMobile: true,
         headerClassName: "w-[calc(120px*var(--font-scale))]",
         cellClassName: "text-muted-foreground",
-      } satisfies SongsColumnMeta,
-      cell: ({ row }) => formatDate(row.original.uploaded_at),
-    },
-    {
+      },
+      cell: ({ getValue }) => formatDate(getValue()),
+    }),
+    columnHelper.display({
       id: "actions",
       header: "",
+      enableSorting: false,
       meta: {
         headerClassName: "w-12 text-right",
         // With a mouse, only shown on hover or while its menu is open; always shown on touch.
         cellClassName:
           "text-right transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:focus-within:opacity-100 pointer-fine:has-[[aria-expanded=true]]:opacity-100",
-      } satisfies SongsColumnMeta,
+      },
       cell: ({ row }) => (
         <SongActionsMenu trackId={row.original.id} activePlaylist={activePlaylist} />
       ),
-    },
-  ];
-  // Left out rather than hidden with CSS: a fixed-layout table keeps hidden columns' widths.
-  const columns = isMobile ? allColumns.filter((column) => !column.meta?.hideOnMobile) : allColumns;
+    }),
+  ]);
 
   const table = useTable({
     features: playlistTableFeatures,
-    data: visibleSongs,
+    // Sorting keeps tied songs in data order, so starting from title order breaks ties by title.
+    data: tableSort ? songsByTitle : songs,
     columns,
     getRowId: (row) => String(row.id),
+    // Missing values go after the rest, so last when ascending and first when descending.
+    defaultColumn: { sortFn: sortFn_basic, sortUndefined: 1 },
+    enableSortingRemoval: false,
+    enableMultiSort: false,
+    state: { sorting, columnVisibility: isMobile ? HIDDEN_ON_MOBILE : {} },
+    onSortingChange: (updater) => {
+      const [next] = typeof updater === "function" ? updater(sorting) : updater;
+      if (next) {
+        const nextSort: TableSort = {
+          key: next.id as SortKey,
+          direction: next.desc ? "desc" : "asc",
+        };
+        setTableSorts({ ...tableSorts, [playlistKey]: nextSort });
+      }
+    },
   });
 
+  const sortedRows = table.getRowModel().rows;
+  const visibleRows = normalizedSearch
+    ? sortedRows.filter(
+        ({ original: song }) =>
+          matches(getSongTitle(song)) || matches(song.artist) || matches(song.album),
+      )
+    : sortedRows;
+  // Playing from here queues what's on screen, sorted and searched.
+  const view = { playlist: activePlaylist, songIds: visibleRows.map((row) => row.original.id) };
+  const sortOptions = table
+    .getAllLeafColumns()
+    .filter((column) => column.getCanSort())
+    .map((column) => ({ id: column.id, label: String(column.columnDef.header) }));
+
   useEffect(() => {
-    setActivePlaylistSongIds(activeSortedIds);
-  }, [activeSortedIds, setActivePlaylistSongIds]);
+    setOpenView(view);
+    return () => setOpenView(null);
+  }, [view, setOpenView]);
 
   const handleSelectSong = (song: PlaylistSong) => {
     if (usePlaybackStore.getState().currentSongId === song.id) {
       restartCurrentSong();
       return;
     }
-    startPlayback({ playlist: activePlaylist, songIds: activeSortedIds, songId: song.id });
+    startPlayback(view, song.id);
   };
 
   return (
@@ -666,7 +630,7 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
               {isLoading
                 ? "Loading songs..."
                 : hasSearch
-                  ? `${visibleSongs.length} of ${songs.length} songs`
+                  ? `${visibleRows.length} of ${songs.length} songs`
                   : `${songs.length} songs`}
             </span>
           </div>
@@ -677,16 +641,19 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
                 type="search"
                 placeholder="Search playlist"
                 value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value);
+                  searches.set(playlistKey, event.target.value);
+                }}
                 // Borderless until focused; the search icon is enough of a hint.
                 className="w-full border-transparent bg-transparent pl-8 shadow-none dark:bg-transparent focus-visible:border-ring"
                 aria-label="Search playlist"
               />
             </div>
             <MobileSortControl
-              sort={tableSort}
-              timeListenedLabel={timeListenedLabel}
-              onSort={handleSort}
+              options={sortOptions}
+              sort={sorting[0]}
+              onSort={(columnId) => table.getColumn(columnId)?.toggleSorting()}
             />
           </div>
         </div>
@@ -711,7 +678,7 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
                 ? `No songs played in the last ${activePlaylist.days} days.`
                 : "No songs yet. Upload a track to get started."}
           </div>
-        ) : visibleSongs.length === 0 ? (
+        ) : visibleRows.length === 0 ? (
           <div className="text-muted-foreground rounded-sm border p-4 text-xs">
             No songs match "{searchQuery.trim()}".
           </div>
@@ -727,16 +694,15 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
                     >
                       {headerGroup.headers.map((header, headerIndex) => {
                         const meta = header.column.columnDef.meta;
-                        const sortKey = meta?.sortKey;
-                        const isActive = sortKey ? tableSort?.key === sortKey : false;
-                        const direction = isActive ? tableSort?.direction : null;
-                        const ariaSort = sortKey
-                          ? isActive
-                            ? direction === "asc"
-                              ? "ascending"
-                              : "descending"
-                            : "none"
-                          : undefined;
+                        const canSort = header.column.getCanSort();
+                        const direction = header.column.getIsSorted();
+                        const ariaSort = !canSort
+                          ? undefined
+                          : direction === "asc"
+                            ? "ascending"
+                            : direction === "desc"
+                              ? "descending"
+                              : "none";
                         const headerLabel = header.isPlaceholder
                           ? null
                           : flexRender(header.column.columnDef.header, header.getContext());
@@ -750,19 +716,19 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
                             )}
                             aria-sort={ariaSort}
                           >
-                            {sortKey ? (
+                            {canSort ? (
                               <button
                                 type="button"
                                 className={cn(
                                   "group/sort flex h-7 w-full items-center justify-start gap-1 px-2 py-0 text-left text-[length:calc(11px*var(--font-scale))] tracking-wider text-muted-foreground uppercase outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                                   meta?.numeric && "flex-row-reverse pr-6 text-right",
-                                  isActive && "text-foreground",
+                                  direction && "text-foreground",
                                   headerIndex === 0 && "pl-0",
                                 )}
-                                onClick={() => handleSort(sortKey)}
+                                onClick={header.column.getToggleSortingHandler()}
                               >
                                 <span>{headerLabel}</span>
-                                {isActive ? (
+                                {direction ? (
                                   direction === "asc" ? (
                                     <ArrowUp className="size-3 text-muted-foreground" />
                                   ) : (
@@ -784,9 +750,9 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
                 <TableBody className="relative">
                   {scrollElement ? (
                     <VirtualSongRows
-                      rows={table.getRowModel().rows}
+                      table={table}
+                      rows={visibleRows}
                       scrollElement={scrollElement}
-                      columnCount={columns.length}
                       onSelect={handleSelectSong}
                     />
                   ) : null}

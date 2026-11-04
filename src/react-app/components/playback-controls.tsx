@@ -86,7 +86,7 @@ export function PlaybackControls() {
     repeat,
     restartToken,
     queueLength,
-    activePlaylistSongIds,
+    hasOpenSongs,
     play,
     pause,
     next,
@@ -102,7 +102,7 @@ export function PlaybackControls() {
       repeat: state.repeat,
       restartToken: state.restartToken,
       queueLength: state.queue.length,
-      activePlaylistSongIds: state.activePlaylistSongIds,
+      hasOpenSongs: Boolean(state.openView?.songIds.length),
       play: state.play,
       pause: state.pause,
       next: state.next,
@@ -135,7 +135,7 @@ export function PlaybackControls() {
   const [isSeeking, setIsSeeking] = useState(false);
   const displayCurrentTime = currentSongId ? currentTime : 0;
   const displayDuration = currentSongId ? duration : 0;
-  const canPlay = Boolean(currentSongId || activePlaylistSongIds.length);
+  const canPlay = Boolean(currentSongId) || hasOpenSongs;
   const storageKey = currentSong?.storage_key;
   const fileSize = currentSong?.file_size;
 

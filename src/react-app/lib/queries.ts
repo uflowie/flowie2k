@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { fetch } from "void/client";
 
+import { usePlaybackStore } from "@/react-app/lib/playback-store";
 import { getPlaylistKey, type ActivePlaylist } from "@/react-app/lib/playlists";
 
 const DEFAULT_QUERY_OPTIONS = {
@@ -122,7 +123,11 @@ export const useRemoveTrackFromPlaylistMutation = () => {
         method: "DELETE",
         params: { id: String(playlistId), trackId: String(trackId) },
       }),
-    onSuccess: async () => {
+    onSuccess: async (_data, { playlistId, trackId }) => {
+      const { playbackPlaylist, removeFromQueue } = usePlaybackStore.getState();
+      if (playbackPlaylist.type === "custom" && playbackPlaylist.id === playlistId) {
+        removeFromQueue(trackId);
+      }
       await invalidateLibraryQueries(queryClient);
     },
   });
@@ -137,7 +142,8 @@ export const useDeleteSongMutation = () => {
         method: "DELETE",
         params: { id: String(trackId) },
       }),
-    onSuccess: async () => {
+    onSuccess: async (_data, trackId) => {
+      usePlaybackStore.getState().removeFromQueue(trackId);
       await invalidateLibraryQueries(queryClient);
     },
   });

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Input } from "@/components/ui/input";
 import {
   CalendarRange,
@@ -40,7 +40,6 @@ import {
   usePlaylistsQuery,
   useUploadSongMutation,
 } from "@/react-app/lib/queries";
-import { usePlaybackStore } from "@/react-app/lib/playback-store";
 import { CustomizationSection } from "@/react-app/components/customization-section";
 import { toast } from "sonner";
 
@@ -55,8 +54,8 @@ export function AppSidebar() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
   const queryClient = useQueryClient();
-  const activePlaylist = usePlaybackStore((state) => state.activePlaylist);
-  const setActivePlaylist = usePlaybackStore((state) => state.setActivePlaylist);
+  // The open playlist, from the URL.
+  const { playlistId: openPlaylistId } = useParams({ strict: false });
   const navigate = useNavigate();
   const { isMobile, setOpenMobile } = useSidebar();
   // On phones the sidebar covers the page, so close it once a playlist is picked.
@@ -118,16 +117,10 @@ export function AppSidebar() {
     }
     createPlaylistMutation.mutate(name.trim(), {
       onSuccess: (data) => {
-        const playlist = {
-          type: "custom",
-          id: data.id,
-          name: data.name,
-        } as const;
-        setActivePlaylist(playlist);
         closeOnMobile();
         void navigate({
           to: "/playlists/$playlistId",
-          params: { playlistId: String(playlist.id) },
+          params: { playlistId: String(data.id) },
         });
       },
     });
@@ -266,8 +259,7 @@ export function AppSidebar() {
             <SidebarMenu>
               {SMART_PLAYLISTS.map((playlist) => {
                 const Icon = SMART_PLAYLIST_ICONS[playlist.id];
-                const isActive =
-                  activePlaylist.type === "smart" && activePlaylist.id === playlist.id;
+                const isActive = openPlaylistId === playlist.id;
                 return (
                   <SidebarMenuItem key={playlist.id}>
                     <SidebarMenuButton
@@ -278,10 +270,7 @@ export function AppSidebar() {
                       <Link
                         to="/playlists/$playlistId"
                         params={{ playlistId: playlist.id }}
-                        onClick={() => {
-                          setActivePlaylist(playlist);
-                          closeOnMobile();
-                        }}
+                        onClick={closeOnMobile}
                         onMouseEnter={() => prefetchPlaylist(playlist)}
                         onFocus={() => prefetchPlaylist(playlist)}
                       >
@@ -309,8 +298,7 @@ export function AppSidebar() {
               ) : (
                 playlists.map((playlist) => {
                   const playlistData = toCustomPlaylist(playlist);
-                  const isActive =
-                    activePlaylist.type === "custom" && activePlaylist.id === playlistData.id;
+                  const isActive = openPlaylistId === String(playlist.id);
                   return (
                     <SidebarMenuItem key={playlist.id}>
                       <SidebarMenuButton
@@ -321,10 +309,7 @@ export function AppSidebar() {
                         <Link
                           to="/playlists/$playlistId"
                           params={{ playlistId: String(playlist.id) }}
-                          onClick={() => {
-                            setActivePlaylist(playlistData);
-                            closeOnMobile();
-                          }}
+                          onClick={closeOnMobile}
                           onMouseEnter={() => prefetchPlaylist(playlistData)}
                           onFocus={() => prefetchPlaylist(playlistData)}
                         >
