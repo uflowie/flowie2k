@@ -133,6 +133,13 @@ export function PlaybackControls() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
+  // Reset the seek bar as soon as the song changes, not once the new one has loaded.
+  const [loadedSong, setLoadedSong] = useState({ id: currentSongId, restartToken });
+  if (loadedSong.id !== currentSongId || loadedSong.restartToken !== restartToken) {
+    setLoadedSong({ id: currentSongId, restartToken });
+    setCurrentTime(0);
+    if (loadedSong.id !== currentSongId) setDuration(0);
+  }
   const displayCurrentTime = currentSongId ? currentTime : 0;
   const displayDuration = currentSongId ? duration : 0;
   const canPlay = Boolean(currentSongId) || hasOpenSongs;
