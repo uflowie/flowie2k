@@ -6,7 +6,8 @@ import { PlaybackControls } from "@/react-app/components/playback-controls";
 
 const RootLayout = () => (
   <>
-    <div className="flex h-svh flex-col overflow-hidden">
+    {/* Full screen on phones, kept clear of the status bar; the player keeps clear of the home indicator. */}
+    <div className="flex h-svh flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
       <SidebarProvider className="min-h-0 flex-1">
         <AppSidebar />
         <div className="relative isolate flex h-full w-full flex-1 flex-col overflow-hidden">

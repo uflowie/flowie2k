@@ -338,7 +338,7 @@ export function PlaybackControls() {
   }, [handleSeek, next, pause, play, previous]);
 
   return (
-    <div className="border-t bg-background px-3 py-2">
+    <div className="border-t bg-background px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(28rem,44rem)_minmax(0,1fr)] lg:items-center">
         <div className="flex min-w-0 items-center gap-3">
           <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted/30">

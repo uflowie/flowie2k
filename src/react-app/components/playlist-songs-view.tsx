@@ -621,7 +621,7 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pt-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 px-3 pt-5 md:pt-3">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <SidebarTrigger className="-ml-1 size-9 md:hidden [&_svg]:size-5" />

@@ -5,6 +5,8 @@ const Toaster = ({ className, ...props }: ToasterProps) => (
   <Sonner
     theme="dark"
     position="top-center"
+    // Below the status bar on phones.
+    mobileOffset={{ top: "calc(env(safe-area-inset-top) + 16px)" }}
     className={cn("toaster group", className)}
     toastOptions={{
       classNames: {
