@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { booleanSetting, readSetting, writeSetting } from "@/react-app/lib/local-storage";
-import { DEFAULT_PLAYLIST, type ActivePlaylist } from "@/react-app/lib/playlists";
+import { DEFAULT_PLAYLIST, getPlaylistKey, type ActivePlaylist } from "@/react-app/lib/playlists";
 
 const shuffleSetting = booleanSetting("player.shuffle", false);
 const repeatSetting = booleanSetting("player.repeat", false);
@@ -50,6 +50,10 @@ type PlaybackStore = {
   shuffle: boolean;
   repeat: boolean;
   restartToken: number;
+  /** Set when the playing song should be scrolled into view in its playlist (by its key). */
+  revealRequest: string | null;
+  revealCurrentSong: () => void;
+  clearRevealRequest: () => void;
   setOpenView: (view: PlaylistView | null) => void;
   startPlayback: (view: PlaylistView, songId: number) => void;
   /** For deleted songs, or ones removed from the playing playlist. */
@@ -75,6 +79,10 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
   shuffle: readSetting(shuffleSetting),
   repeat: readSetting(repeatSetting),
   restartToken: 0,
+  revealRequest: null,
+  revealCurrentSong: () =>
+    set((state) => ({ revealRequest: getPlaylistKey(state.playbackPlaylist) })),
+  clearRevealRequest: () => set({ revealRequest: null }),
   setOpenView: (openView) => set({ openView }),
   startPlayback: ({ playlist, songIds }, songId) =>
     set((state) => ({
