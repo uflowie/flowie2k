@@ -91,6 +91,12 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 const formatDate = (timestamp?: number) =>
   timestamp === undefined ? "" : dateFormatter.format(timestamp);
 
+/** Undefined for blank text, so it sorts like a missing value. */
+const toText = (value?: string | null) => (value?.trim() ? value : undefined);
+
+/** Undefined for missing or zero amounts, which show as empty cells. */
+const toPositive = (value?: number | null) => (value && value > 0 ? value : undefined);
+
 /** Undefined for missing or invalid dates, so they sort like missing values. */
 const toTimestamp = (value?: string | null) => {
   const timestamp = value ? Date.parse(value) : Number.NaN;
@@ -376,12 +382,13 @@ type SongRowsProps = {
   /** Passed so the rows re-render when the columns change, even if the rows don't. */
   table: ReactTable<typeof playlistTableFeatures, PlaylistSong>;
   rows: SongTableRow[];
+  playlistKey: string;
   scrollElement: HTMLDivElement;
   onSelect: (song: PlaylistSong) => void;
 };
 
 /** Renders only the rows on screen, with spacer rows standing in for the rest. */
-function VirtualSongRows({ table, rows, scrollElement, onSelect }: SongRowsProps) {
+function VirtualSongRows({ table, rows, playlistKey, scrollElement, onSelect }: SongRowsProps) {
   // React Compiler can't safely memoize useVirtualizer, so it's kept to this small component.
   "use no memo";
   const rowVirtualizer = useVirtualizer({
@@ -392,6 +399,16 @@ function VirtualSongRows({ table, rows, scrollElement, onSelect }: SongRowsProps
     overscan: 30,
   });
   const virtualRows = rowVirtualizer.getVirtualItems();
+
+  // Scroll to the playing song when it's asked for, e.g. by clicking it in the player.
+  const revealRequest = usePlaybackStore((state) => state.revealRequest);
+  useEffect(() => {
+    if (revealRequest !== playlistKey) return;
+    const { currentSongId, clearRevealRequest } = usePlaybackStore.getState();
+    const index = rows.findIndex((row) => row.original.id === currentSongId);
+    if (index >= 0) rowVirtualizer.scrollToIndex(index, { align: "center" });
+    clearRevealRequest();
+  }, [revealRequest, playlistKey, rows, rowVirtualizer]);
   const paddingTop = virtualRows[0]?.start ?? 0;
   const paddingBottom = rowVirtualizer.getTotalSize() - (virtualRows.at(-1)?.end ?? 0);
   const spacer = (height: number) =>
@@ -485,7 +502,7 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
         </div>
       ),
     }),
-    columnHelper.accessor((song) => song.artist ?? undefined, {
+    columnHelper.accessor((song) => toText(song.artist), {
       id: "artist",
       header: "Artist",
       sortFn: compareText,
@@ -495,7 +512,7 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
       },
       cell: ({ getValue }) => getValue() ?? "",
     }),
-    columnHelper.accessor((song) => song.album ?? undefined, {
+    columnHelper.accessor((song) => toText(song.album), {
       id: "album",
       header: "Album",
       sortFn: compareText,
@@ -505,7 +522,7 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
       },
       cell: ({ getValue }) => getValue() ?? "",
     }),
-    columnHelper.accessor((song) => song.duration ?? undefined, {
+    columnHelper.accessor((song) => toPositive(song.duration), {
       id: "duration",
       header: "Duration",
       sortDescFirst: true,
@@ -517,7 +534,7 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
       cell: ({ getValue }) => formatDuration(getValue()),
     }),
     columnHelper.accessor(
-      (song) => getListeningSecondsForPlaylist(song, activePlaylist) ?? undefined,
+      (song) => toPositive(getListeningSecondsForPlaylist(song, activePlaylist)),
       {
         id: "time",
         header: timeListenedLabel,
@@ -575,8 +592,8 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
     data: tableSort ? songsByTitle : songs,
     columns,
     getRowId: (row) => String(row.id),
-    // Missing values go after the rest, so last when ascending and first when descending.
-    defaultColumn: { sortFn: sortFn_basic, sortUndefined: 1 },
+    // Empty values always go last, whichever way the column is sorted.
+    defaultColumn: { sortFn: sortFn_basic, sortUndefined: "last" },
     enableSortingRemoval: false,
     enableMultiSort: false,
     state: { sorting, columnVisibility: isMobile ? HIDDEN_ON_MOBILE : {} },
@@ -752,6 +769,7 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
                     <VirtualSongRows
                       table={table}
                       rows={visibleRows}
+                      playlistKey={playlistKey}
                       scrollElement={scrollElement}
                       onSelect={handleSelectSong}
                     />

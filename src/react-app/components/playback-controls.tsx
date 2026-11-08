@@ -10,6 +10,7 @@ import {
   SkipForward,
   Volume2,
 } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { useShallow } from "zustand/react/shallow";
 
 import { Button } from "@/components/ui/button";
@@ -114,6 +115,15 @@ export function PlaybackControls() {
   );
 
   const { data: playbackSongs = [] } = useSongsQuery(playbackPlaylist);
+  const navigate = useNavigate();
+
+  const showCurrentSong = () => {
+    void navigate({
+      to: "/playlists/$playlistId",
+      params: { playlistId: String(playbackPlaylist.id) },
+    });
+    usePlaybackStore.getState().revealCurrentSong();
+  };
 
   const currentSong = currentSongId
     ? (playbackSongs.find((song) => song.id === currentSongId) ?? null)
@@ -347,7 +357,15 @@ export function PlaybackControls() {
   return (
     <div className="border-t bg-background px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(28rem,44rem)_minmax(0,1fr)] lg:items-center">
-        <div className="flex min-w-0 items-center gap-3">
+        <button
+          type="button"
+          onClick={showCurrentSong}
+          disabled={!currentSongId}
+          aria-label={
+            currentSongId ? `Show ${currentSongLabel} in ${playbackPlaylist.name}` : undefined
+          }
+          className="-m-1 flex min-w-0 items-center gap-3 rounded-md p-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring enabled:cursor-pointer enabled:hover:bg-accent/50"
+        >
           <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted/30">
             {currentSong?.thumbnail_path ? (
               <CoverImage
@@ -366,7 +384,7 @@ export function PlaybackControls() {
               </p>
             ) : null}
           </div>
-        </div>
+        </button>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center justify-center gap-1.5">
             <Button
