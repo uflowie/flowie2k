@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type DragEvent } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, MoreVertical, Search } from "lucide-react";
 
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -38,6 +38,7 @@ import {
   type ActivePlaylist,
 } from "@/react-app/lib/playlists";
 import {
+  getAudioUrl,
   useAddTrackToPlaylistMutation,
   useDeleteSongMutation,
   usePlaylistsQuery,
@@ -194,6 +195,25 @@ type SongRowProps = {
   onSelect: (song: PlaylistSong) => void;
 };
 
+/** Only with a mouse: on touch screens a long press would start a drag instead of scrolling. */
+const canDragOut = typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches;
+
+/**
+ * Drags the song's audio file out of the app, e.g. onto the desktop or into another app.
+ * Chrome and Edge save the file itself (`DownloadURL`); other browsers drop its link.
+ */
+const handleDragStart = (event: DragEvent, song: PlaylistSong) => {
+  const url = new URL(getAudioUrl(song.storage_key), window.location.href).href;
+  // DownloadURL is `type:name:url`, so the name can't contain colons.
+  const name = song.filename.replaceAll(":", "_");
+  const { dataTransfer } = event;
+  dataTransfer.clearData();
+  dataTransfer.effectAllowed = "copy";
+  dataTransfer.setData("DownloadURL", `application/octet-stream:${name}:${url}`);
+  dataTransfer.setData("text/uri-list", url);
+  dataTransfer.setData("text/plain", url);
+};
+
 function SongRow({ song, cells, index, measureRef, onSelect }: SongRowProps) {
   const isSelected = usePlaybackStore((state) => state.currentSongId === song.id);
 
@@ -204,6 +224,8 @@ function SongRow({ song, cells, index, measureRef, onSelect }: SongRowProps) {
       data-state={isSelected ? "selected" : undefined}
       className="group/row h-12 cursor-pointer select-none focus-visible:outline-none md:h-8"
       onClick={() => onSelect(song)}
+      draggable={canDragOut}
+      onDragStart={canDragOut ? (event) => handleDragStart(event, song) : undefined}
     >
       {cells.map((cell, cellIndex) => {
         const meta = cell.column.columnDef.meta;

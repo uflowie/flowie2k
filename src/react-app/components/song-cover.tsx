@@ -42,6 +42,8 @@ export function SongCover({ song, className }: SongCoverProps) {
         <img
           src={getThumbnailUrl(song.thumbnail_path!, "small")}
           alt=""
+          // Dragging a row drags its audio file, not the cover image.
+          draggable={false}
           loading="lazy"
           decoding="async"
           className="size-full object-cover"

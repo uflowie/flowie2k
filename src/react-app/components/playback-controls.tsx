@@ -478,7 +478,7 @@ export function PlaybackControls() {
         </div>
         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
           {/* On phones the speed slider gets a full-width row like the seek bar, so it's easy to hit. */}
-          <label className="flex w-full items-center gap-2 text-[calc(10px*var(--font-scale))] text-muted-foreground md:w-auto md:gap-1.5 [&_svg]:text-foreground/70">
+          <div className="flex w-full items-center gap-2 text-[calc(10px*var(--font-scale))] text-muted-foreground md:w-auto md:gap-1.5 [&_svg]:text-foreground/70">
             <span className="flex w-10 justify-end md:w-auto">
               <Gauge className="size-3.5" />
             </span>
@@ -491,8 +491,15 @@ export function PlaybackControls() {
               className="-my-2 w-full py-2 md:my-0 md:w-20 md:py-0"
               aria-label="Playback speed"
             />
-            <span className="w-10 md:w-8 md:text-right">{Math.round(playbackRate * 100)}%</span>
-          </label>
+            <button
+              type="button"
+              onClick={() => setPlaybackRate(1)}
+              className="w-10 cursor-pointer text-left hover:text-foreground md:w-8 md:text-right"
+              aria-label="Reset playback speed to 100%"
+            >
+              {Math.round(playbackRate * 100)}%
+            </button>
+          </div>
           {/* Phones have hardware volume keys, and iOS ignores volume set from the page. */}
           <label className="hidden items-center gap-1.5 md:flex text-[calc(10px*var(--font-scale))] text-muted-foreground [&_svg]:text-foreground/70">
             <Volume2 className="size-3.5" />
