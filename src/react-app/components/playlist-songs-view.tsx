@@ -600,7 +600,7 @@ export function PlaylistSongsView({ playlist: activePlaylist }: { playlist: Acti
         headerClassName: "w-12 text-right",
         // With a mouse, only shown on hover or while its menu is open; always shown on touch.
         cellClassName:
-          "text-right transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:focus-within:opacity-100 pointer-fine:has-[[aria-expanded=true]]:opacity-100",
+          "text-right pointer-fine:opacity-0 pointer-fine:group-hover/row:opacity-100 pointer-fine:focus-within:opacity-100 pointer-fine:has-[[aria-expanded=true]]:opacity-100",
       },
       cell: ({ row }) => (
         <SongActionsMenu trackId={row.original.id} activePlaylist={activePlaylist} />
