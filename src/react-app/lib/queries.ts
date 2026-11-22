@@ -6,7 +6,6 @@ import { getPlaylistKey, type ActivePlaylist } from "@/react-app/lib/playlists";
 
 const DEFAULT_QUERY_OPTIONS = {
   staleTime: 30_000,
-  gcTime: 5 * 60_000,
 } as const;
 const LIBRARY_QUERY_KEYS = {
   playlists: ["playlists"] as const,
