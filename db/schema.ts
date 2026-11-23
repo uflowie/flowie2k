@@ -22,6 +22,12 @@ export const tracks = sqliteTable(
     last_played: text("last_played"),
     // Measured integrated loudness, for evening out volume at playback.
     loudness_lufs: real("loudness_lufs"),
+    // MusicBrainz identifiers, from matching the audio fingerprint (scripts/fingerprint-tracks.ts).
+    recording_mbid: text("recording_mbid"),
+    // JSON array of the recording's credited artists, in credit order.
+    artist_mbids: text("artist_mbids"),
+    // Set only when the album tag came from MusicBrainz.
+    release_group_mbid: text("release_group_mbid"),
   },
   (t) => [
     index("idx_tracks_filename").on(t.filename),
